@@ -75,31 +75,27 @@ export const HydroChart: React.FC<HydroChartProps> = ({
     }
   };
 
+  // Автоматический динамический диапазон оси Y:
+  // от min(P10, осадка) - 0.15 м до max(паспорт 4.50, осадка) + 0.10 м
+  const minP10 = Math.min(...timeline.map((pt) => pt.p10DepthMeters));
+  const passportDepth = 4.50;
+  const yAxisMinDepth = Number((Math.min(minP10, vesselDraft) - 0.15).toFixed(2));
+  const yAxisMaxDepth = Number((Math.max(passportDepth, vesselDraft) + 0.10).toFixed(2));
+  const depthRange = Math.max(0.60, yAxisMaxDepth - yAxisMinDepth);
+
   // Координатная сетка SVG (ViewBox 0 0 760 120)
   const xMin = 48;
   const xMax = 712;
   const xSpan = xMax - xMin;
 
-  const yMin = 18;
-  const yMax = 94;
+  const yMin = 18; // px for top (yAxisMaxDepth)
+  const yMax = 94; // px for bottom (yAxisMinDepth)
   const ySpan = yMax - yMin;
-
-  // Динамические границы оси Y: от min(P10, осадка) - 0.15 до max(паспорт 4.50, осадка) + 0.10
-  const passportDepth = 4.50;
-  const minP10Val = timeline.length > 0
-    ? Math.min(...timeline.map((pt) => pt.p10DepthMeters), vesselDraft)
-    : Math.min(3.30, vesselDraft);
-  const dynamicYMinDepth = Number((minP10Val - 0.15).toFixed(2));
-
-  const maxVal = Math.max(passportDepth, vesselDraft);
-  const dynamicYMaxDepth = Number((maxVal + 0.10).toFixed(2));
-  const depthSpan = Math.max(0.60, dynamicYMaxDepth - dynamicYMinDepth);
 
   const getX = (h: number) => xMin + (Math.max(0, Math.min(72, h)) / 72) * xSpan;
   const getY = (d: number) => {
-    const clamped = Math.max(dynamicYMinDepth, Math.min(dynamicYMaxDepth, d));
-    const ratio = (dynamicYMaxDepth - clamped) / depthSpan;
-    return yMin + ratio * ySpan;
+    const clampedD = Math.max(yAxisMinDepth, Math.min(yAxisMaxDepth, d));
+    return yMin + ((yAxisMaxDepth - clampedD) / depthRange) * ySpan;
   };
 
   // Линия осадки судна
@@ -123,7 +119,7 @@ export const HydroChart: React.FC<HydroChartProps> = ({
   const hasRisk = riskWindow.hasRisk && riskWindow.startHour !== -1;
   const riskStartX = hasRisk ? getX(riskWindow.startHour) : 0;
   const riskEndX = hasRisk ? getX(riskWindow.endHour) : 0;
-  const bottomY = getY(dynamicYMinDepth);
+  const bottomY = getY(yAxisMinDepth);
 
   const riskPolygonPoints = hasRisk
     ? `
@@ -141,6 +137,11 @@ export const HydroChart: React.FC<HydroChartProps> = ({
   // Точка планового прибытия судна на бар (ETA)
   const etaX = getX(vesselEtaBarHour);
   const etaY = getY(depthAtArrivalMeters);
+
+  // Сетка глубин по оси Y
+  const yTicks = [4.50, 4.00, 3.50, 3.00].filter(
+    (val) => val >= yAxisMinDepth && val <= yAxisMaxDepth
+  );
 
   return (
     <div className="glass-panel rounded-panel p-3.5 flex flex-col gap-2.5 text-text select-none border border-hairline">
@@ -175,7 +176,7 @@ export const HydroChart: React.FC<HydroChartProps> = ({
           ) : isEtaInRiskWindow ? (
             <span className="px-2 py-0.5 rounded-full text-[11px] border border-critical bg-critical-muted text-critical flex items-center gap-1 font-semibold">
               <AlertTriangle className="w-3 h-3" strokeWidth={1.5} />
-              ETA (T+{vesselEtaBarHour}ч) в риске! Дефицит {Math.abs(clearanceAtArrivalMeters).toFixed(2)} м
+              ETA (T+{vesselEtaBarHour}ч) в риске · P(мель) {profile.arrivalGroundingProbabilityPercent}%
             </span>
           ) : (
             <span className="px-2 py-0.5 rounded-full text-[11px] border border-warn bg-warn-muted text-warn flex items-center gap-1 font-medium">
@@ -310,32 +311,30 @@ export const HydroChart: React.FC<HydroChartProps> = ({
       {/* SVG Chart Area: Шрифты >=12px, полоса P10-P90, подписи над линией */}
       <div className="relative w-full h-[120px] bg-surface rounded-inner border border-hairline overflow-hidden pt-1">
         <svg viewBox="0 0 760 120" className="w-full h-full" preserveAspectRatio="none">
-          {/* Сетка глубин Y */}
-          {[4.50, 4.00, 3.50, 3.00]
-            .filter((lvl) => lvl >= dynamicYMinDepth + 0.08 && lvl <= dynamicYMaxDepth - 0.05)
-            .map((lvl) => (
-              <g key={lvl}>
-                <line
-                  x1={xMin}
-                  y1={getY(lvl)}
-                  x2={xMax}
-                  y2={getY(lvl)}
-                  stroke="var(--hairline)"
-                  strokeWidth="1"
-                  strokeDasharray="2, 4"
-                />
-                <text
-                  x={xMin - 6}
-                  y={getY(lvl) + 4}
-                  fill="var(--text-2)"
-                  fontSize="12"
-                  textAnchor="end"
-                  fontFamily="monospace"
-                >
-                  {lvl.toFixed(2)}
-                </text>
-              </g>
-            ))}
+          {/* Сетка глубин Y (динамические деления) */}
+          {yTicks.map((tick) => (
+            <React.Fragment key={tick}>
+              <line
+                x1={xMin}
+                y1={getY(tick)}
+                x2={xMax}
+                y2={getY(tick)}
+                stroke="var(--hairline)"
+                strokeWidth="1"
+                strokeDasharray="2, 4"
+              />
+              <text
+                x={xMin - 6}
+                y={getY(tick) + 4}
+                fill="var(--text-2)"
+                fontSize="12"
+                textAnchor="end"
+                fontFamily="monospace"
+              >
+                {tick.toFixed(2)}
+              </text>
+            </React.Fragment>
+          ))}
 
           {/* Полоса неопределенности P10-P90 (доверительный интервал) */}
           <polygon
@@ -354,10 +353,10 @@ export const HydroChart: React.FC<HydroChartProps> = ({
                 strokeWidth="1.2"
                 strokeDasharray="4, 4"
               />
-              {/* Подпись «ОКНО РИСКА» внутри зоны риска (не пересекает кривую) */}
+              {/* Подпись «ОКНО РИСКА» по центру над красной зоной (не пересекает кривую) */}
               <text
                 x={(riskStartX + riskEndX) / 2}
-                y={Math.max(22, Math.min(yMax - 8, draftY + 16))}
+                y={Math.min(draftY - 6, yMax - 8)}
                 fill="var(--critical)"
                 fontSize="12"
                 textAnchor="middle"
@@ -381,7 +380,7 @@ export const HydroChart: React.FC<HydroChartProps> = ({
           {/* Подпись «Осадка» справа над линией (не пересекает кривую) */}
           <text
             x={xMax - 6}
-            y={Math.max(14, draftY - 5)}
+            y={draftY - 5}
             fill="var(--warn)"
             fontSize="12"
             textAnchor="end"
@@ -428,7 +427,7 @@ export const HydroChart: React.FC<HydroChartProps> = ({
             textAnchor="middle"
             fontWeight="bold"
           >
-            ETA: T+{vesselEtaBarHour}ч {isSafePass ? '(ПРОХОД)' : isEtaInRiskWindow ? '(МЕЛЬ!)' : '(ОЖИДАНИЕ)'}
+            ETA: T+{vesselEtaBarHour}ч {isSafePass ? '(ПРОХОД)' : isEtaInRiskWindow ? `(РИСК ${profile.arrivalGroundingProbabilityPercent}%)` : '(ОЖИДАНИЕ)'}
           </text>
           <circle
             cx={etaX}
