@@ -354,8 +354,8 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
     <div className="relative w-full h-full min-h-[480px] rounded-panel overflow-hidden border border-hairline bg-base shadow-2xl">
       <div ref={mapContainerRef} className="w-full h-full min-h-[480px]" />
 
-      {/* Floating Legend */}
-      <div className="absolute bottom-5 left-5 z-[1000] glass-panel px-3.5 py-2.5 rounded-inner text-xs flex flex-wrap items-center gap-4">
+      {/* Floating Legend (Вынесена в правый нижний угол, не перекрывает Баку) */}
+      <div className="absolute bottom-4 right-4 z-[1000] glass-panel px-3.5 py-2 rounded-inner text-xs flex flex-wrap items-center gap-3 shadow-lg">
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-accent" />
           <span className="text-[11px] text-text font-medium">Трасса ВКМСК (188 км)</span>

@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import {
   Check,
-  X,
-  AlertTriangle,
   Zap,
   ArrowRight,
   ShieldCheck,
@@ -12,7 +10,8 @@ import {
   ChevronDown,
   ChevronUp,
   HelpCircle,
-  CheckCircle2
+  CheckCircle2,
+  Anchor
 } from 'lucide-react';
 import { DecisionScenario } from '../domain/scenarioDecision';
 
@@ -27,20 +26,21 @@ interface DecisionMatrixProps {
 
 export const DecisionMatrix: React.FC<DecisionMatrixProps> = ({
   scenarios,
-  selectedScenarioId,
-  onSelectScenario,
   onApplySyncSlot,
   isSlotSynced,
   isSyncing,
 }) => {
   const [expandedScenarioId, setExpandedScenarioId] = useState<string | null>(null);
 
-  const toggleFormulas = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const toggleExpand = (id: string) => {
     setExpandedScenarioId((prev) => (prev === id ? null : id));
   };
 
   const isPassOnly = scenarios.length === 1 && scenarios[0].id === 'pass';
+
+  // Рекомендованный сценарий выносим на первое место
+  const recommendedScenario = scenarios.find((s) => s.isRecommended) || scenarios[0];
+  const secondaryScenarios = scenarios.filter((s) => s !== recommendedScenario);
 
   return (
     <div className="glass-panel rounded-panel p-5 flex flex-col gap-4 text-text select-none border border-hairline">
@@ -56,13 +56,13 @@ export const DecisionMatrix: React.FC<DecisionMatrixProps> = ({
                 Панель поддержки решений логиста
               </span>
             </div>
-            <p className="text-[11px] text-text-2 mt-0.5">
+            <p className="text-xs text-text-2 mt-0.5">
               Динамический выбор оптимального сценария на основе осадки, наносов и часа ETA
             </p>
           </div>
         </div>
 
-        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-surface-2 text-text-2 border border-hairline">
+        <span className="text-xs px-2.5 py-0.5 rounded-full bg-surface-2 text-text-2 border border-hairline">
           {isPassOnly ? 'Штатно' : `${scenarios.length} альтернативы`}
         </span>
       </div>
@@ -73,280 +73,288 @@ export const DecisionMatrix: React.FC<DecisionMatrixProps> = ({
           <div className="flex items-start gap-2.5 text-ok">
             <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" strokeWidth={1.5} />
             <div>
-              <div className="font-semibold text-xs text-text">
+              <div className="font-semibold text-sm text-text">
                 {scenarios[0].title}
               </div>
-              <p className="text-[11px] text-text-2 mt-0.5">
+              <p className="text-xs text-text-2 mt-0.5">
                 {scenarios[0].subtitle}
               </p>
             </div>
           </div>
 
-          <div className="space-y-1 bg-surface p-2.5 rounded border border-hairline text-[10px] font-mono">
+          <div className="space-y-1.5 bg-surface p-3 rounded-inner border border-hairline text-xs">
             <div className="flex items-center justify-between">
               <span className="text-text-2">Осадка судна:</span>
-              <span className="text-ok flex items-center gap-1">
-                <Check className="w-3 h-3" />
+              <span className="text-ok flex items-center gap-1 font-medium">
+                <Check className="w-3.5 h-3.5" />
                 <span>{scenarios[0].feasibility.draftDetail}</span>
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-text-2">Причал и кран:</span>
-              <span className="text-ok flex items-center gap-1">
-                <Check className="w-3 h-3" />
+              <span className="text-ok flex items-center gap-1 font-medium">
+                <Check className="w-3.5 h-3.5" />
                 <span>{scenarios[0].feasibility.berthAndCraneDetail}</span>
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-text-2">Нитка РЖД:</span>
-              <span className="text-ok flex items-center gap-1">
-                <Check className="w-3 h-3" />
+              <span className="text-ok flex items-center gap-1 font-medium">
+                <Check className="w-3.5 h-3.5" />
                 <span>{scenarios[0].feasibility.rzdSlotDetail}</span>
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-text-2">Локомотив:</span>
-              <span className="text-ok flex items-center gap-1">
-                <Check className="w-3 h-3" />
+              <span className="text-ok flex items-center gap-1 font-medium">
+                <Check className="w-3.5 h-3.5" />
                 <span>{scenarios[0].feasibility.locomotiveDetail}</span>
               </span>
             </div>
           </div>
 
-          <div className="p-2 rounded bg-surface border border-hairline text-[10px] font-mono text-text-2">
-            Рекомендация: Судно проходит лимитирующий бар без задержек. Корректировка слотов не требуется.
+          <div className="p-2.5 rounded bg-surface border border-hairline text-xs text-text-2 leading-relaxed">
+            Рекомендация: Судно проходит лимитирующий бар без задержек. Вмешательства диспетчера не требуется.
           </div>
         </div>
       )}
 
-      {/* Case 2: Risk occurs -> Alternative Scenarios */}
+      {/* Case 2: Risk occurs -> Recommended Large Card + Collapsed Alternatives */}
       {!isPassOnly && (
         <div className="flex flex-col gap-3">
-          {scenarios.map((scenario) => {
-            const isSelected = selectedScenarioId === scenario.id;
-            const isMakhachkala = scenario.id === 'makhachkala';
-            const isExpanded = expandedScenarioId === scenario.id;
+          {/* 1. КРУПНЫЙ ПЕРВЫЙ РЕКОМЕНДОВАННЫЙ ВАРИАНТ */}
+          <div className="p-4 rounded-inner border-2 border-accent bg-surface-2 shadow-lg space-y-3">
+            {/* Header */}
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm text-text">
+                    {recommendedScenario.title}
+                  </span>
+                  <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-ok-muted border border-ok text-ok">
+                    Рекомендовано алгоритмом
+                  </span>
+                </div>
+                <p className="text-xs text-text-2 mt-1 leading-relaxed">
+                  {recommendedScenario.subtitle}
+                </p>
+              </div>
 
-            return (
-              <div
-                key={scenario.id}
-                onClick={() => scenario.id !== 'pass' && onSelectScenario(scenario.id as 'wait' | 'makhachkala' | 'lighten')}
-                className={`p-3.5 rounded-inner border transition-all cursor-pointer ${
-                  scenario.isRecommended
-                    ? 'border-accent bg-surface-2'
-                    : isSelected
-                    ? 'border-hairline bg-surface-2'
-                    : 'border-hairline bg-surface hover:bg-surface-2'
-                }`}
+              <button
+                onClick={() => toggleExpand(recommendedScenario.id)}
+                className="px-2.5 py-1 rounded bg-surface border border-hairline text-xs text-text-2 hover:text-text flex items-center gap-1 transition-all cursor-pointer"
+                title="Формулы расчёта"
               >
-                {/* Scenario Header */}
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-xs text-text">
+                <HelpCircle className="w-3.5 h-3.5 text-accent" strokeWidth={1.5} />
+                <span>Формулы</span>
+                {expandedScenarioId === recommendedScenario.id ? (
+                  <ChevronUp className="w-3.5 h-3.5" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5" />
+                )}
+              </button>
+            </div>
+
+            {/* Delta Metrics Row */}
+            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+              <div className="bg-surface p-2 rounded-inner border border-hairline flex flex-col items-center justify-center">
+                <span className="text-text-2 flex items-center gap-1 mb-1 text-[11px]">
+                  <Clock className="w-3 h-3 text-text-2" strokeWidth={1.5} />
+                  Δ Время
+                </span>
+                <span className="font-semibold text-text font-mono tabular-nums text-sm">
+                  +{recommendedScenario.deltaHours} ч
+                </span>
+              </div>
+
+              <div className="bg-surface p-2 rounded-inner border border-hairline flex flex-col items-center justify-center">
+                <span className="text-text-2 flex items-center gap-1 mb-1 text-[11px]">
+                  <DollarSign className="w-3 h-3 text-text-2" strokeWidth={1.5} />
+                  Δ Затраты
+                </span>
+                <span className="font-semibold text-text font-mono tabular-nums text-sm">
+                  +${recommendedScenario.deltaCostUsd.toLocaleString()}
+                </span>
+              </div>
+
+              <div className="bg-surface p-2 rounded-inner border border-hairline flex flex-col items-center justify-center">
+                <span className="text-text-2 flex items-center gap-1 mb-1 text-[11px]">
+                  <Leaf className="w-3 h-3 text-text-2" strokeWidth={1.5} />
+                  Δ CO2
+                </span>
+                <span className="font-semibold text-text font-mono tabular-nums text-sm">
+                  +{recommendedScenario.deltaCo2Tons} т
+                </span>
+              </div>
+            </div>
+
+            {/* Expandable Formulas Box */}
+            {expandedScenarioId === recommendedScenario.id && (
+              <div className="p-3 rounded bg-surface border border-accent text-xs space-y-1.5 text-text-2">
+                <div className="text-accent font-semibold flex items-center gap-1">
+                  Математический расчёт параметров:
+                </div>
+                <div>
+                  <span className="text-text">Время:</span> {recommendedScenario.calculationDetails.timeFormula}
+                </div>
+                <div>
+                  <span className="text-text">Затраты:</span> {recommendedScenario.calculationDetails.costFormula}
+                </div>
+                <div>
+                  <span className="text-text">Эмиссия:</span> {recommendedScenario.calculationDetails.co2Formula}
+                </div>
+              </div>
+            )}
+
+            {/* 4-Item Checklist */}
+            <div className="space-y-1.5 bg-surface p-2.5 rounded-inner border border-hairline text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-text-2">Осадка судна:</span>
+                <span className="text-ok flex items-center gap-1">
+                  <Check className="w-3.5 h-3.5" />
+                  <span>{recommendedScenario.feasibility.draftDetail}</span>
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-text-2">Причал и кран:</span>
+                <span className="text-ok flex items-center gap-1">
+                  <Check className="w-3.5 h-3.5" />
+                  <span>{recommendedScenario.feasibility.berthAndCraneDetail}</span>
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-text-2">Нитка РЖД:</span>
+                <span className="text-ok flex items-center gap-1">
+                  <Check className="w-3.5 h-3.5" />
+                  <span>{recommendedScenario.feasibility.rzdSlotDetail}</span>
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-text-2">Локомотив:</span>
+                <span className="text-ok flex items-center gap-1">
+                  <Check className="w-3.5 h-3.5" />
+                  <span>{recommendedScenario.feasibility.locomotiveDetail}</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Action Button for Recommended Option */}
+            {recommendedScenario.id === 'makhachkala' && !isSlotSynced && (
+              <button
+                onClick={onApplySyncSlot}
+                disabled={isSyncing}
+                className="w-full py-2.5 px-4 rounded-inner bg-accent hover:opacity-90 active:opacity-100 text-text font-medium text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <Zap className="w-4 h-4" strokeWidth={1.5} />
+                <span>Применить Caspian Sync-Slot (Махачкала)</span>
+                <ArrowRight className="w-4 h-4" strokeWidth={1.5} />
+              </button>
+            )}
+
+            {recommendedScenario.id === 'wait' && (
+              <div className="p-2.5 rounded bg-ok-muted border border-ok text-ok text-xs font-medium flex items-center gap-2">
+                <Anchor className="w-4 h-4" strokeWidth={1.5} />
+                <span>Подтверждена кратковременная стоянка на внешнем рейде до T+54ч</span>
+              </div>
+            )}
+
+            {isSlotSynced && (
+              <div className="p-2.5 rounded bg-ok-muted border border-ok text-ok text-xs font-medium flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4" strokeWidth={1.5} />
+                <span>Сценарий активирован: судно и состав РЖД перенаправлены в Махачкалу</span>
+              </div>
+            )}
+          </div>
+
+          {/* 2. НЕРЕАЛИЗУЕМЫЕ И ВТОРОСТЕПЕННЫЕ ВАРИАНТЫ (СВЕРНУТЫ В ОДНУ СТРОКУ) */}
+          <div className="space-y-2 pt-1">
+            <span className="text-xs text-text-2 block px-1">
+              Альтернативные варианты:
+            </span>
+
+            {secondaryScenarios.map((scenario) => {
+              const isExpanded = expandedScenarioId === scenario.id;
+
+              return (
+                <div
+                  key={scenario.id}
+                  className="rounded-inner border border-hairline bg-surface hover:bg-surface-2 transition-all overflow-hidden"
+                >
+                  {/* Collapsed One-Line Row */}
+                  <div
+                    onClick={() => toggleExpand(scenario.id)}
+                    className="p-3 flex items-center justify-between cursor-pointer text-xs"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="font-medium text-text">
                         {scenario.title}
                       </span>
-                      {scenario.isRecommended && (
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-ok-muted border border-ok text-ok font-semibold">
-                          Рекомендовано алгоритмом
+                      <span className="text-text-2 font-mono tabular-nums text-[11px]">
+                        +{scenario.deltaHours} ч · +${scenario.deltaCostUsd.toLocaleString()}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {scenario.rejectionReason ? (
+                        <span className="px-2 py-0.5 rounded text-[11px] bg-critical-muted border border-critical text-critical font-medium">
+                          {scenario.id === 'wait' ? 'Отказ: срыв слота >6 ч' : 'Отказ: нет плавкрана'}
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-[11px] bg-surface-2 border border-hairline text-text-2">
+                          Менее выгодно
                         </span>
                       )}
-                      {!scenario.isFeasible && (
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-critical-muted border border-critical text-critical">
-                          Нереализуемо
-                        </span>
+                      {isExpanded ? (
+                        <ChevronUp className="w-3.5 h-3.5 text-text-2" />
+                      ) : (
+                        <ChevronDown className="w-3.5 h-3.5 text-text-2" />
                       )}
                     </div>
-                    <p className="text-[10px] text-text-2 mt-0.5">
-                      {scenario.subtitle}
-                    </p>
                   </div>
 
-                  {/* Button to open calculation breakdown */}
-                  <button
-                    onClick={(e) => toggleFormulas(scenario.id, e)}
-                    className="px-2 py-1 rounded bg-surface border border-hairline text-[10px] text-text-2 hover:text-text flex items-center gap-1 transition-all cursor-pointer"
-                    title="Показать математические формулы и исходные данные"
-                  >
-                    <HelpCircle className="w-3 h-3 text-accent" strokeWidth={1.5} />
-                    <span>Формулы</span>
-                    {isExpanded ? (
-                      <ChevronUp className="w-3 h-3" />
-                    ) : (
-                      <ChevronDown className="w-3 h-3" />
-                    )}
-                  </button>
+                  {/* Expanded Details */}
+                  {isExpanded && (
+                    <div className="p-3 border-t border-hairline bg-surface-2 text-xs space-y-2">
+                      <p className="text-text-2 leading-relaxed">
+                        {scenario.subtitle}
+                      </p>
+                      {scenario.rejectionReason && (
+                        <div className="p-2 rounded bg-surface border border-critical text-critical text-xs">
+                          {scenario.rejectionReason}
+                        </div>
+                      )}
+                      <div className="space-y-1 bg-surface p-2 rounded text-xs text-text-2">
+                        <div className="flex justify-between">
+                          <span>Осадка:</span>
+                          <span className={scenario.feasibility.draft ? 'text-ok' : 'text-critical'}>
+                            {scenario.feasibility.draftDetail}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Причал и кран:</span>
+                          <span className={scenario.feasibility.berthAndCrane ? 'text-ok' : 'text-critical'}>
+                            {scenario.feasibility.berthAndCraneDetail}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Нитка РЖД:</span>
+                          <span className={scenario.feasibility.rzdSlot ? 'text-ok' : 'text-critical'}>
+                            {scenario.feasibility.rzdSlotDetail}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Локомотив:</span>
+                          <span className={scenario.feasibility.locomotive ? 'text-ok' : 'text-critical'}>
+                            {scenario.feasibility.locomotiveDetail}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-
-                {/* Delta Metrics Row: Δ время, Δ $, Δ CO2 */}
-                <div className="grid grid-cols-3 gap-1.5 my-2.5 text-center text-[10px] font-mono">
-                  <div className="bg-surface p-1.5 rounded border border-hairline flex flex-col items-center justify-center">
-                    <span className="text-text-2 flex items-center gap-1 mb-0.5">
-                      <Clock className="w-3 h-3 text-text-2" strokeWidth={1.5} />
-                      Δ Время
-                    </span>
-                    <span
-                      className={`font-semibold ${
-                        scenario.deltaHours > 20 ? 'text-critical' : 'text-ok'
-                      }`}
-                    >
-                      +{scenario.deltaHours} ч
-                    </span>
-                  </div>
-
-                  <div className="bg-surface p-1.5 rounded border border-hairline flex flex-col items-center justify-center">
-                    <span className="text-text-2 flex items-center gap-1 mb-0.5">
-                      <DollarSign className="w-3 h-3 text-text-2" strokeWidth={1.5} />
-                      Δ Затраты
-                    </span>
-                    <span
-                      className={`font-semibold ${
-                        scenario.deltaCostUsd > 20000 ? 'text-critical' : 'text-text'
-                      }`}
-                    >
-                      +${scenario.deltaCostUsd.toLocaleString()}
-                    </span>
-                  </div>
-
-                  <div className="bg-surface p-1.5 rounded border border-hairline flex flex-col items-center justify-center">
-                    <span className="text-text-2 flex items-center gap-1 mb-0.5">
-                      <Leaf className="w-3 h-3 text-text-2" strokeWidth={1.5} />
-                      Δ CO2
-                    </span>
-                    <span className="font-semibold text-text">
-                      +{scenario.deltaCo2Tons} т
-                    </span>
-                  </div>
-                </div>
-
-                {/* Expandable Box: Как считалось (формулы) */}
-                {isExpanded && (
-                  <div className="my-2.5 p-2.5 rounded bg-surface border border-accent text-[10px] font-mono space-y-1.5 text-text-2">
-                    <div className="text-accent font-semibold flex items-center gap-1">
-                      Математический расчёт параметров:
-                    </div>
-                    <div>
-                      <span className="text-text">Время:</span> {scenario.calculationDetails.timeFormula}
-                    </div>
-                    <div>
-                      <span className="text-text">Затраты:</span> {scenario.calculationDetails.costFormula}
-                    </div>
-                    <div>
-                      <span className="text-text">Эмиссия:</span> {scenario.calculationDetails.co2Formula}
-                    </div>
-                    <div className="pt-1 border-t border-divider space-y-0.5 text-[9px]">
-                      <span className="text-text-2 block">Допущения и нормативы:</span>
-                      {scenario.calculationDetails.assumptions.map((a, idx) => (
-                        <div key={idx}>· {a}</div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Feasibility Checklist: 4 parameters with anonymized IDs */}
-                <div className="space-y-1 bg-surface p-2 rounded border border-hairline text-[10px] font-mono">
-                  {/* 1. Осадка */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-text-2">Осадка судна:</span>
-                    <span
-                      className={`flex items-center gap-1 ${
-                        scenario.feasibility.draft ? 'text-ok' : 'text-critical'
-                      }`}
-                    >
-                      {scenario.feasibility.draft ? (
-                        <Check className="w-3 h-3" strokeWidth={2} />
-                      ) : (
-                        <X className="w-3 h-3" strokeWidth={2} />
-                      )}
-                      <span>{scenario.feasibility.draftDetail}</span>
-                    </span>
-                  </div>
-
-                  {/* 2. Причал и кран */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-text-2">Причал и кран:</span>
-                    <span
-                      className={`flex items-center gap-1 ${
-                        scenario.feasibility.berthAndCrane ? 'text-ok' : 'text-critical'
-                      }`}
-                    >
-                      {scenario.feasibility.berthAndCrane ? (
-                        <Check className="w-3 h-3" strokeWidth={2} />
-                      ) : (
-                        <X className="w-3 h-3" strokeWidth={2} />
-                      )}
-                      <span>{scenario.feasibility.berthAndCraneDetail}</span>
-                    </span>
-                  </div>
-
-                  {/* 3. Нитка РЖД */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-text-2">Нитка РЖД:</span>
-                    <span
-                      className={`flex items-center gap-1 ${
-                        scenario.feasibility.rzdSlot ? 'text-ok' : 'text-critical'
-                      }`}
-                    >
-                      {scenario.feasibility.rzdSlot ? (
-                        <Check className="w-3 h-3" strokeWidth={2} />
-                      ) : (
-                        <X className="w-3 h-3" strokeWidth={2} />
-                      )}
-                      <span>{scenario.feasibility.rzdSlotDetail}</span>
-                    </span>
-                  </div>
-
-                  {/* 4. Локомотив */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-text-2">Локомотив:</span>
-                    <span
-                      className={`flex items-center gap-1 ${
-                        scenario.feasibility.locomotive ? 'text-ok' : 'text-critical'
-                      }`}
-                    >
-                      {scenario.feasibility.locomotive ? (
-                        <Check className="w-3 h-3" strokeWidth={2} />
-                      ) : (
-                        <X className="w-3 h-3" strokeWidth={2} />
-                      )}
-                      <span>{scenario.feasibility.locomotiveDetail}</span>
-                    </span>
-                  </div>
-                </div>
-
-                {/* Rejection Reason or Action Button */}
-                {scenario.rejectionReason && (
-                  <div className="mt-2 p-2 rounded bg-surface border border-critical text-[10px] text-critical flex items-start gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" strokeWidth={1.5} />
-                    <span>Причина отказа: {scenario.rejectionReason}</span>
-                  </div>
-                )}
-
-                {/* Action Button for Makhachkala */}
-                {isMakhachkala && !isSlotSynced && scenario.isRecommended && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onApplySyncSlot();
-                    }}
-                    disabled={isSyncing}
-                    className="mt-2.5 w-full py-2 px-3 rounded-inner bg-accent hover:opacity-90 active:opacity-100 text-text font-medium text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
-                  >
-                    <Zap className="w-3.5 h-3.5" strokeWidth={1.5} />
-                    <span>Применить Caspian Sync-Slot (Махачкала)</span>
-                    <ArrowRight className="w-3.5 h-3.5" strokeWidth={1.5} />
-                  </button>
-                )}
-
-                {isMakhachkala && isSlotSynced && (
-                  <div className="mt-2 p-2 rounded bg-ok-muted border border-ok text-ok text-[11px] font-medium flex items-center gap-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5" strokeWidth={1.5} />
-                    <span>Сценарий активирован: судно и состав РЖД перенаправлены в Махачкалу</span>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

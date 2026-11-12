@@ -1,13 +1,15 @@
 import React from 'react';
-import { Anchor, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Anchor, RefreshCw } from 'lucide-react';
+
+export type ScenarioPresetMode = 'nominal' | 'sgon' | 'june2026';
 
 interface HeaderProps {
   vkmskDepthMeters: number;
   windSpeedMs: number;
   windRumb: string;
-  isCrisisActive: boolean;
+  presetMode: ScenarioPresetMode;
+  onSelectPresetMode: (mode: ScenarioPresetMode) => void;
   isSlotSynced: boolean;
-  onToggleCrisis: () => void;
   onReset: () => void;
 }
 
@@ -15,15 +17,15 @@ export const Header: React.FC<HeaderProps> = ({
   vkmskDepthMeters,
   windSpeedMs,
   windRumb,
-  isCrisisActive,
+  presetMode,
+  onSelectPresetMode,
   isSlotSynced,
-  onToggleCrisis,
   onReset,
 }) => {
   return (
-    <header className="fixed top-4 left-4 right-4 z-[1000] flex items-center justify-between pointer-events-none select-none">
+    <header className="h-16 px-6 border-b border-hairline bg-surface/80 backdrop-blur-md flex items-center justify-between select-none z-30 shrink-0">
       {/* Brand & Mission */}
-      <div className="pointer-events-auto flex items-center gap-3 glass-panel px-4 py-2.5 rounded-panel">
+      <div className="flex items-center gap-3">
         <div className="w-8 h-8 rounded-inner bg-accent-muted text-accent flex items-center justify-center">
           <Anchor className="w-4 h-4" strokeWidth={1.5} />
         </div>
@@ -37,61 +39,77 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </div>
           <p className="text-[11px] text-text-2">
-            Цифровой двойник МТК Север–Юг · КЦФ 2026
+            Цифровой двойник МТК «Север–Юг» · КЦФ 2026
           </p>
         </div>
       </div>
 
-      {/* ВКМСК Telemetry Badge */}
-      <div className="pointer-events-auto hidden md:flex items-center gap-3 glass-panel px-5 py-2.5 rounded-panel text-xs">
+      {/* ВКМСК Telemetry Badge (Шрифты без font-mono для прозы, только числа) */}
+      <div className="hidden lg:flex items-center gap-3 px-4 py-1.5 rounded-inner bg-surface border border-hairline text-xs">
         <div className="flex items-center gap-2">
           <span
             className={`w-2 h-2 rounded-full ${
-              isSlotSynced ? 'bg-ok' : isCrisisActive ? 'bg-critical' : 'bg-warn'
+              isSlotSynced ? 'bg-ok' : presetMode !== 'nominal' ? 'bg-critical' : 'bg-ok'
             }`}
           />
-          <span className="text-text-2">ВКМСК:</span>
+          <span className="text-text-2">ВКМСК бар 151 км:</span>
           <span
-            className={`font-mono font-semibold tabular-nums ${
-              isSlotSynced ? 'text-ok' : isCrisisActive ? 'text-critical' : 'text-text'
+            className={`font-semibold tabular-nums font-mono ${
+              isSlotSynced ? 'text-ok' : presetMode !== 'nominal' ? 'text-critical' : 'text-text'
             }`}
           >
-            {isSlotSynced ? 'Обход через Махачкалу' : `факт ${vkmskDepthMeters.toFixed(2)} м`}
+            {isSlotSynced ? 'Обход (Махачкала 6.8 м)' : `${vkmskDepthMeters.toFixed(2)} м`}
           </span>
           {!isSlotSynced && (
-            <span className="text-[11px] text-text-2 font-mono">
-              · цель 4.50 м
+            <span className="text-[11px] text-text-2">
+              (паспорт 4.50 м)
             </span>
           )}
           <span className="text-[11px] text-text-2 font-mono tabular-nums">
-            ({windSpeedMs.toFixed(1)} м/с {windRumb})
+            · {windSpeedMs.toFixed(1)} м/с {windRumb}
           </span>
         </div>
       </div>
 
-      {/* Incident Simulation & Reset Controls */}
-      <div className="pointer-events-auto flex items-center gap-2 glass-panel p-1.5 rounded-panel">
-        <button
-          onClick={onToggleCrisis}
-          className={`px-3.5 py-1.5 rounded-inner text-xs font-medium flex items-center gap-2 transition-all cursor-pointer ${
-            isCrisisActive
-              ? 'bg-critical text-text'
-              : 'bg-surface-2 hover:bg-divider text-text'
-          }`}
-        >
-          <AlertTriangle
-            className={`w-3.5 h-3.5 ${isCrisisActive ? 'text-text' : 'text-warn'}`}
-            strokeWidth={1.5}
-          />
-          <span>
-            {isCrisisActive ? 'Сгон ВКМСК (СЗ 14.5 м/с)' : 'Симулировать сгон (СЗ 14.5 м/с)'}
-          </span>
-        </button>
+      {/* Apple-style Segmented Control: Штатно | Сгон | Июнь 2026 */}
+      <div className="flex items-center gap-2">
+        <div className="p-1 rounded-inner bg-surface border border-hairline flex items-center gap-1 text-xs">
+          <button
+            onClick={() => onSelectPresetMode('nominal')}
+            className={`px-3 py-1.5 rounded-inner font-medium transition-all cursor-pointer ${
+              presetMode === 'nominal'
+                ? 'bg-surface-2 text-text border border-hairline shadow-sm'
+                : 'text-text-2 hover:text-text'
+            }`}
+          >
+            Штатно
+          </button>
+          <button
+            onClick={() => onSelectPresetMode('sgon')}
+            className={`px-3 py-1.5 rounded-inner font-medium transition-all cursor-pointer ${
+              presetMode === 'sgon'
+                ? 'bg-surface-2 text-text border border-hairline shadow-sm'
+                : 'text-text-2 hover:text-text'
+            }`}
+          >
+            Сгон (СЗ 14.5 м/с)
+          </button>
+          <button
+            onClick={() => onSelectPresetMode('june2026')}
+            className={`px-3 py-1.5 rounded-inner font-medium transition-all cursor-pointer ${
+              presetMode === 'june2026'
+                ? 'bg-surface-2 text-text border border-hairline shadow-sm'
+                : 'text-text-2 hover:text-text'
+            }`}
+          >
+            Июнь 2026 (Минтранс)
+          </button>
+        </div>
 
-        {(isCrisisActive || isSlotSynced) && (
+        {presetMode !== 'nominal' && (
           <button
             onClick={onReset}
-            className="w-8 h-8 rounded-inner bg-surface-2 hover:bg-divider text-text-2 hover:text-text flex items-center justify-center transition-all cursor-pointer"
+            className="w-8 h-8 rounded-inner bg-surface hover:bg-surface-2 border border-hairline text-text-2 hover:text-text flex items-center justify-center transition-all cursor-pointer"
             title="Сброс к штатному состоянию"
           >
             <RefreshCw className="w-3.5 h-3.5" strokeWidth={1.5} />

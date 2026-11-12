@@ -4,12 +4,14 @@ export interface HydroTimelinePoint {
   hour: number;
   label: string;
   depthMeters: number;
+  p10DepthMeters: number; // Нижняя граница 80% доверительного интервала (P10)
+  p90DepthMeters: number; // Верхняя граница 80% доверительного интервала (P90)
   vesselDraftMeters: number;
   clearanceMeters: number;
   windSpeedMs: number;
   windRumb: string;
-  isRisk: boolean; // Опасность мели (глубина <= осадки)
-  isWarning: boolean; // Запас ниже 0.50 м
+  isRisk: boolean;
+  isWarning: boolean;
   vesselLat: number;
   vesselLon: number;
   etaOffsetHours: number;
@@ -26,11 +28,11 @@ export interface HydroProfileForecast {
   };
   vesselDraftMeters: number;
   siltationMeters: number;
-  vesselEtaBarHour: number; // Плановый час подхода к бару 151-155 км
-  isEtaInRiskWindow: boolean; // Попадает ли подход судна в окно риска
+  vesselEtaBarHour: number;
+  isEtaInRiskWindow: boolean;
   depthAtArrivalMeters: number;
   clearanceAtArrivalMeters: number;
-  isSafePass: boolean; // Судно проходит без инцидента
+  isSafePass: boolean;
   minDepthMeters: number;
   maxWindSpeedMs: number;
   provenance: 'assumption';
@@ -38,20 +40,13 @@ export interface HydroProfileForecast {
 
 /**
  * Расчет 72-часового предиктивного гидрологического профиля ВКМСК (151-155 км).
- *
- * ФИЗИЧЕСКАЯ РЕКОНСТРУКЦИЯ (по материалам Минтранса РФ):
- * Фактическая глубина на баре определяется совокупностью 3 факторов:
- * 1. Проектная паспортная глубина: 4.50 м.
- * 2. Донные наносы после паводка (заносимость перекатов): siltationMeters (0.10 - 0.55 м).
- * 3. Ветровой сгон северных и северо-западных румбов (СЗ >8 м/с выдувает воду из дельты на 0.10 - 0.60 м).
- *
- * Формула: Depth(t) = 4.50 - siltationMeters - windDrop(t)
+ * Включает доверительный интервал неопределенности P10-P90 (погрешность гидродинамической модели).
  */
 export function generateHydroTimeline(
   vesselDraftMeters = 4.15,
   isCrisisMode = true,
   vesselEtaBarHour = 20,
-  siltationMeters = 0.35 // Допущение на основе данных Минтранса РФ (наносы после весеннего паводка)
+  siltationMeters = 0.35
 ): HydroProfileForecast {
   const points: HydroTimelinePoint[] = [];
   const hours = [0, 3, 6, 9, 12, 15, 18, 20, 24, 27, 30, 33, 36, 42, 48, 54, 60, 66, 72];
@@ -82,7 +77,7 @@ export function generateHydroTimeline(
       } else if (h <= 30) {
         wind = 14.5;
         rumb = 'СЗ';
-        windDrop = 0.60; // Максимальный ветровой сгон
+        windDrop = 0.60;
       } else if (h <= 48) {
         const progress = (h - 30) / 18;
         wind = Number((14.5 - progress * 5.5).toFixed(1));
@@ -105,6 +100,11 @@ export function generateHydroTimeline(
     if (depth < minDepth) minDepth = depth;
     if (wind > maxWind) maxWind = wind;
 
+    // Полоса неопределенности P10-P90: в штиль +/- 8 см, в шторм +/- 15 см
+    const uncertainty = h >= 15 && h <= 50 ? 0.15 : 0.08;
+    const p10 = Number((depth - uncertainty).toFixed(2));
+    const p90 = Number((depth + uncertainty).toFixed(2));
+
     const clearance = Number((depth - vesselDraftMeters).toFixed(2));
     const isRisk = depth < vesselDraftMeters;
     const isWarning = depth < vesselDraftMeters + 0.50;
@@ -114,7 +114,6 @@ export function generateHydroTimeline(
       riskEnd = h;
     }
 
-    // Траектория движения судна от внешнего рейда (44.75, 47.92) к бару 151-155 км (45.27, 47.72)
     const etaProgress = vesselEtaBarHour > 0 ? Math.min(1, h / vesselEtaBarHour) : 1;
     const vesselLat = Number((44.75 + etaProgress * (45.27 - 44.75)).toFixed(4));
     const vesselLon = Number((47.92 - etaProgress * (47.92 - 47.72)).toFixed(4));
@@ -127,6 +126,8 @@ export function generateHydroTimeline(
       hour: h,
       label: `T+${h}ч`,
       depthMeters: depth,
+      p10DepthMeters: p10,
+      p90DepthMeters: p90,
       vesselDraftMeters,
       clearanceMeters: clearance,
       windSpeedMs: wind,
@@ -141,7 +142,6 @@ export function generateHydroTimeline(
   }
 
   // Расчет параметров в точке планового прибытия судна (ETA)
-  // Получаем глубину в час vesselEtaBarHour
   let depthAtArrival = baseCalmDepth;
   if (isCrisisMode) {
     if (vesselEtaBarHour >= 18 && vesselEtaBarHour <= 30) {
@@ -149,8 +149,8 @@ export function generateHydroTimeline(
     } else if (vesselEtaBarHour > 30 && vesselEtaBarHour <= 54) {
       const p = (vesselEtaBarHour - 30) / 24;
       depthAtArrival = Number((baseCalmDepth - 0.60 + p * 0.50).toFixed(2));
-    } else if (vesselEtaBarHour > 9 && vesselEtaBarHour < 18) {
-      const p = (vesselEtaBarHour - 9) / 9;
+    } else if (vesselEtaBarHour > 12 && vesselEtaBarHour < 18) {
+      const p = (vesselEtaBarHour - 12) / 6;
       depthAtArrival = Number((baseCalmDepth - p * 0.45).toFixed(2));
     }
   }
@@ -207,6 +207,8 @@ export function getInterpolatedHydroPoint(
   const t = span === 0 ? 0 : (targetHour - lower.hour) / span;
 
   const depth = Number((lower.depthMeters + (upper.depthMeters - lower.depthMeters) * t).toFixed(2));
+  const p10 = Number((lower.p10DepthMeters + (upper.p10DepthMeters - lower.p10DepthMeters) * t).toFixed(2));
+  const p90 = Number((lower.p90DepthMeters + (upper.p90DepthMeters - lower.p90DepthMeters) * t).toFixed(2));
   const wind = Number((lower.windSpeedMs + (upper.windSpeedMs - lower.windSpeedMs) * t).toFixed(1));
   const clearance = Number((depth - vesselDraftMeters).toFixed(2));
   const isRisk = depth < vesselDraftMeters;
@@ -220,6 +222,8 @@ export function getInterpolatedHydroPoint(
     hour: targetHour,
     label: `T+${targetHour}ч`,
     depthMeters: depth,
+    p10DepthMeters: p10,
+    p90DepthMeters: p90,
     vesselDraftMeters,
     clearanceMeters: clearance,
     windSpeedMs: wind,

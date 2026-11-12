@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Header } from './Header';
+import { Header, ScenarioPresetMode } from './Header';
 import { CaspianMap } from './CaspianMap';
 import { HydroChart } from './HydroChart';
 import { SyncSlotPanel } from './SyncSlotPanel';
@@ -11,22 +11,48 @@ import { generateHydroTimeline, getInterpolatedHydroPoint } from '../domain/hydr
 import { evaluateDecisionScenarios } from '../domain/scenarioDecision';
 
 export const App: React.FC = () => {
-  const [isCrisisActive, setIsCrisisActive] = useState(false);
+  const [presetMode, setPresetMode] = useState<ScenarioPresetMode>('sgon');
   const [isSlotSynced, setIsSlotSynced] = useState(false);
   const [isPreCleared, setIsPreCleared] = useState(false);
-  const [currentHour, setCurrentHour] = useState(0);
+  const [currentHour, setCurrentHour] = useState(20);
 
-  // Интерактивные параметры реконструкции (осадка, наносы, ETA подхода на бар)
+  // Интерактивные параметры реконструкции
   const [vesselDraft, setVesselDraft] = useState(4.15); // 4.15 м (Volgo-Max) или 3.40 м (типичная)
-  const [siltationMeters, setSiltationMeters] = useState(0.35); // Наносы после паводка по Минтрансу РФ (0.10 - 0.55 м)
-  const [vesselEtaBarHour, setVesselEtaBarHour] = useState(20); // Плановый час подхода к бару: T+10ч, T+20ч, T+58ч
+  const [siltationMeters, setSiltationMeters] = useState(0.35); // Наносы после паводка по Минтрансу РФ
+  const [vesselEtaBarHour, setVesselEtaBarHour] = useState(20); // Час подхода к бару: T+10ч, T+20ч, T+58ч
 
   const [selectedScenarioId, setSelectedScenarioId] = useState<'wait' | 'makhachkala' | 'lighten'>('makhachkala');
   const [isSyncing, setIsSyncing] = useState(false);
 
   const [cargo, setCargo] = useState(INITIAL_CARGO);
 
-  // Предиктивный гидрологический профиль на 72 часа с учетом физики Минтранса РФ
+  // Обработка переключения режимов сценария: Штатно | Сгон | Июнь 2026
+  const handleSelectPresetMode = (mode: ScenarioPresetMode) => {
+    setPresetMode(mode);
+    setIsSlotSynced(false);
+
+    if (mode === 'nominal') {
+      setVesselDraft(4.15);
+      setSiltationMeters(0.20);
+      setVesselEtaBarHour(20);
+      setCurrentHour(0);
+    } else if (mode === 'sgon') {
+      setVesselDraft(4.15);
+      setSiltationMeters(0.35);
+      setVesselEtaBarHour(20);
+      setCurrentHour(20);
+    } else if (mode === 'june2026') {
+      // Экстремальные наносы 0.55 м по Минтрансу (глубина падает до 3.35 м)
+      setVesselDraft(4.15);
+      setSiltationMeters(0.55);
+      setVesselEtaBarHour(20);
+      setCurrentHour(20);
+    }
+  };
+
+  const isCrisisActive = presetMode !== 'nominal';
+
+  // Предиктивный гидрологический профиль на 72 часа
   const hydroForecast = useMemo(() => {
     return generateHydroTimeline(vesselDraft, isCrisisActive, vesselEtaBarHour, siltationMeters);
   }, [vesselDraft, isCrisisActive, vesselEtaBarHour, siltationMeters]);
@@ -36,7 +62,7 @@ export const App: React.FC = () => {
     return getInterpolatedHydroPoint(hydroForecast, currentHour);
   }, [hydroForecast, currentHour]);
 
-  // Оценка сценариев при риске на основе динамического алгоритма
+  // Оценка сценариев при риске
   const scenarios = useMemo(() => {
     return evaluateDecisionScenarios(
       vesselDraft,
@@ -46,7 +72,7 @@ export const App: React.FC = () => {
     );
   }, [vesselDraft, hydroForecast.depthAtArrivalMeters, vesselEtaBarHour, hydroForecast.riskWindow.endHour]);
 
-  // Динамическое состояние судна, синхронизированное с входящим рейсом и осадкой
+  // Динамическое состояние судна
   const vessel = useMemo(() => {
     if (isSlotSynced) {
       return {
@@ -69,17 +95,6 @@ export const App: React.FC = () => {
     };
   }, [isSlotSynced, vesselDraft, currentHydroPoint, isCrisisActive, currentHour]);
 
-  // Переключение симуляции сгонного ветра в ВКМСК
-  const handleToggleCrisis = () => {
-    if (!isCrisisActive) {
-      setIsCrisisActive(true);
-      setIsSlotSynced(false);
-      setCurrentHour(vesselEtaBarHour); // Перемещаем бегунок точно на час планового подхода к бару
-    } else {
-      handleReset();
-    }
-  };
-
   // Выполнение синхронизации слота (Caspian Sync-Slot)
   const handleSyncSlot = () => {
     setIsSyncing(true);
@@ -92,14 +107,7 @@ export const App: React.FC = () => {
 
   // Сброс к базовому состоянию
   const handleReset = () => {
-    setIsCrisisActive(false);
-    setIsSlotSynced(false);
-    setIsPreCleared(false);
-    setCurrentHour(0);
-    setVesselDraft(4.15);
-    setSiltationMeters(0.35);
-    setVesselEtaBarHour(20);
-    setSelectedScenarioId('makhachkala');
+    handleSelectPresetMode('nominal');
     setCargo(INITIAL_CARGO);
   };
 
@@ -111,27 +119,26 @@ export const App: React.FC = () => {
     }));
   };
 
-  // Тревога зависит от того, активен ли кризис и попадает ли подход судна в окно риска
   const isRiskState = (isCrisisActive && hydroForecast.isEtaInRiskWindow) || currentHydroPoint.isRisk;
 
   return (
-    <div className="min-h-screen bg-base text-text flex flex-col font-sans select-none">
-      {/* Top Floating Header */}
+    <div className="h-screen max-h-screen overflow-hidden bg-base text-text flex flex-col font-sans select-none">
+      {/* Top Fixed Header (h-16, shrink-0, zero page overlap) */}
       <Header
         vkmskDepthMeters={currentHydroPoint.depthMeters}
         windSpeedMs={currentHydroPoint.windSpeedMs}
         windRumb={currentHydroPoint.windRumb}
-        isCrisisActive={isCrisisActive}
+        presetMode={presetMode}
+        onSelectPresetMode={handleSelectPresetMode}
         isSlotSynced={isSlotSynced}
-        onToggleCrisis={handleToggleCrisis}
         onReset={handleReset}
       />
 
-      {/* Main Grid: Fullscreen Map + HydroChart (7 cols) and Right Panels (5 cols) */}
-      <main className="flex-1 pt-20 pb-6 px-6 max-w-[1780px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {/* Main Grid: Exact 100vh viewport fit, scroll ONLY inside right column */}
+      <main className="flex-1 min-h-0 px-6 pb-4 pt-3 grid grid-cols-1 lg:grid-cols-12 gap-5 overflow-hidden max-w-[1840px] w-full mx-auto">
         {/* Left Column: Fullscreen Map Canvas + Predictive Hydro Profile under map */}
-        <section className="lg:col-span-7 flex flex-col min-h-[580px]">
-          <div className="h-[480px] w-full">
+        <section className="lg:col-span-7 h-full flex flex-col justify-between overflow-hidden">
+          <div className="flex-1 min-h-[340px] w-full overflow-hidden">
             <CaspianMap
               ports={PORTS}
               vessel={vessel}
@@ -141,25 +148,27 @@ export const App: React.FC = () => {
             />
           </div>
 
-          {/* Предиктивный график под картой с маркером ETA, ползунком времени и селекторами */}
-          <HydroChart
-            profile={hydroForecast}
-            currentPoint={currentHydroPoint}
-            currentHour={currentHour}
-            onHourChange={setCurrentHour}
-            vesselDraft={vesselDraft}
-            onVesselDraftChange={setVesselDraft}
-            siltationMeters={siltationMeters}
-            onSiltationChange={setSiltationMeters}
-            vesselEtaBarHour={vesselEtaBarHour}
-            onEtaHourChange={setVesselEtaBarHour}
-            isSlotSynced={isSlotSynced}
-          />
+          {/* Предиктивный график под картой с маркером ETA, P10-P90, автоплеем и селекторами */}
+          <div className="shrink-0">
+            <HydroChart
+              profile={hydroForecast}
+              currentPoint={currentHydroPoint}
+              currentHour={currentHour}
+              onHourChange={setCurrentHour}
+              vesselDraft={vesselDraft}
+              onVesselDraftChange={setVesselDraft}
+              siltationMeters={siltationMeters}
+              onSiltationChange={setSiltationMeters}
+              vesselEtaBarHour={vesselEtaBarHour}
+              onEtaHourChange={setVesselEtaBarHour}
+              isSlotSynced={isSlotSynced}
+            />
+          </div>
         </section>
 
-        {/* Right Inspector & Cargo Cards */}
-        <section className="lg:col-span-5 flex flex-col gap-4 overflow-y-auto max-h-[calc(100vh-104px)] pr-1">
-          {/* Панель «Решение» при риске: Динамическая рекомендация алгоритма */}
+        {/* Right Inspector & Cargo Cards: Скролл ТОЛЬКО внутри этой колонки */}
+        <section className="lg:col-span-5 h-full overflow-y-auto pr-1.5 flex flex-col gap-4">
+          {/* Панель «Решение» при риске: Крупный рекомендованный вариант + свернутые альтернативы */}
           <DecisionMatrix
             scenarios={scenarios}
             selectedScenarioId={selectedScenarioId}
