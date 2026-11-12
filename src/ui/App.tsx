@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Info } from 'lucide-react';
-import { Header, ScenarioPresetMode, ViewRole } from './Header';
+import { Header, ScenarioPresetMode, UiMode } from './Header';
 import { CaspianMap } from './CaspianMap';
 import { HydroChart } from './HydroChart';
 import { SyncSlotPanel } from './SyncSlotPanel';
@@ -9,27 +9,24 @@ import { CargoCard } from './CargoCard';
 import { DemoPanel } from './DemoPanel';
 import { PORTS } from '../data/ports';
 import { INITIAL_VESSEL, INITIAL_CARGO } from '../data/vessels';
-import {
-  generateHydroTimeline,
-  getInterpolatedHydroPoint,
-  calculateGroundingProbability,
-} from '../domain/hydroProfile';
+import { generateHydroTimeline, getInterpolatedHydroPoint } from '../domain/hydroProfile';
 import { evaluateDecisionScenarios } from '../domain/scenarioDecision';
 import { CASPIAN_ASSUMPTIONS } from '../data/assumptions';
 
 export const App: React.FC = () => {
-  const [viewRole, setViewRole] = useState<ViewRole>('demo');
   const [presetMode, setPresetMode] = useState<ScenarioPresetMode>('sgon');
+  const [uiMode, setUiMode] = useState<UiMode>('demo'); // Демо-режим по умолчанию
   const [isSlotSynced, setIsSlotSynced] = useState(false);
   const [isPreCleared, setIsPreCleared] = useState(false);
   const [currentHour, setCurrentHour] = useState(20);
 
-  // Клавиша D для быстрого переключения Демо | Диспетчер
+  // Горячая клавиша D для переключения режимов «Демо | Диспетчер»
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Игнорируем, если фокус в input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === 'd' || e.key === 'D' || e.key === 'в' || e.key === 'В') {
-        setViewRole((prev) => (prev === 'demo' ? 'dispatcher' : 'demo'));
+        setUiMode((prev) => (prev === 'demo' ? 'dispatcher' : 'demo'));
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -149,17 +146,6 @@ export const App: React.FC = () => {
 
   const isRiskState = (isCrisisActive && hydroForecast.isEtaInRiskWindow) || currentHydroPoint.isRisk;
 
-  // Расчет вероятности риска мели по модели нормального приближения P10-P90
-  const groundingProbability = useMemo(() => {
-    const point = hydroForecast.timeline.find((t) => t.hour === vesselEtaBarHour) || currentHydroPoint;
-    return calculateGroundingProbability(
-      vesselDraft,
-      hydroForecast.depthAtArrivalMeters,
-      point.p10DepthMeters,
-      point.p90DepthMeters
-    );
-  }, [vesselDraft, hydroForecast, vesselEtaBarHour, currentHydroPoint]);
-
   return (
     <div className="h-screen max-h-screen overflow-hidden bg-base text-text flex flex-col font-sans select-none">
       {/* Top Fixed Header (h-16, shrink-0, zero page overlap) */}
@@ -169,10 +155,10 @@ export const App: React.FC = () => {
         windRumb={currentHydroPoint.windRumb}
         presetMode={presetMode}
         onSelectPresetMode={handleSelectPresetMode}
+        uiMode={uiMode}
+        onSelectUiMode={setUiMode}
         isSlotSynced={isSlotSynced}
         onReset={handleReset}
-        viewRole={viewRole}
-        onSelectViewRole={setViewRole}
       />
 
       {/* Исторический баннер реконструкции «Июнь 2026» */}
@@ -230,26 +216,27 @@ export const App: React.FC = () => {
 
         {/* Right Inspector & Cargo Cards: Скролл ТОЛЬКО внутри этой колонки */}
         <section className="lg:col-span-5 h-full overflow-y-auto pr-1 flex flex-col gap-3 min-h-0">
-          {viewRole === 'demo' ? (
+          {uiMode === 'demo' ? (
+            /* Режим ДЕМО: Заголовок 28px, 1 крупная карточка, свернутые другие варианты и подробности */
             <DemoPanel
               vessel={vessel}
-              cargo={cargo}
+              hydroForecast={hydroForecast}
               scenarios={scenarios}
-              recommendedScenario={activeScenario}
-              waitScenario={waitScenario}
+              selectedScenarioId={selectedScenarioId}
+              onSelectScenario={setSelectedScenarioId}
+              onApplySyncSlot={handleSyncSlot}
               isSlotSynced={isSlotSynced}
               isSyncing={isSyncing}
-              isCrisisActive={isRiskState}
-              onApplySyncSlot={handleSyncSlot}
-              vkmskDepthMeters={currentHydroPoint.depthMeters}
-              currentHour={currentHour}
-              groundingProbability={groundingProbability}
+              waitScenario={waitScenario}
+              cargo={cargo}
               isPreCleared={isPreCleared}
               onPreClear={handlePreClear}
+              vkmskDepthMeters={currentHydroPoint.depthMeters}
+              isCrisisActive={isRiskState}
             />
           ) : (
-            <>
-              {/* Панель «Решение» при риске: Крупный рекомендованный вариант + свернутые альтернативы */}
+            /* Режим ДИСПЕТЧЕР: Полный экран всех операционных панелей */
+            <div className="flex flex-col gap-3">
               <DecisionMatrix
                 scenarios={scenarios}
                 selectedScenarioId={selectedScenarioId}
@@ -259,7 +246,6 @@ export const App: React.FC = () => {
                 isSyncing={isSyncing}
               />
 
-              {/* Карточка судна и гидро-радар (без дублирующей кнопки Sync-Slot) */}
               <SyncSlotPanel
                 vessel={vessel}
                 vkmskDepthMeters={currentHydroPoint.depthMeters}
@@ -269,14 +255,13 @@ export const App: React.FC = () => {
                 selectedScenario={activeScenario}
               />
 
-              {/* Цифровой двойник партии груза (Pre-clearance + ESG) */}
               <CargoCard
                 cargo={cargo}
                 isPreCleared={isPreCleared}
                 onPreClear={handlePreClear}
                 isSlotSynced={isSlotSynced}
               />
-            </>
+            </div>
           )}
         </section>
       </main>
