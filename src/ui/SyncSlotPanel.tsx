@@ -39,7 +39,7 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
 
   const syncPlan: TripartiteSyncPlan = evaluateTripartiteSyncSlot(
     isCrisisActive && !isSlotSynced,
-    vessel.status === 'risk' ? 72.0 : 0.0
+    vessel.status === 'risk' ? 38.0 : 0.0
   );
 
   const handleSyncClick = () => {
@@ -76,7 +76,7 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
               </span>
             </div>
             <p className="text-[11px] text-text-2 font-mono mt-0.5">
-              IMO {vessel.imo} · {vessel.currentLoadTeu}/{vessel.capacityTeu} TEU · Осадка {vessel.draftMeters.toFixed(2)} м (Volgo-Max, до 6% флота)
+              Входящий рейс · IMO {vessel.imo} · {vessel.currentLoadTeu}/{vessel.capacityTeu} TEU · Осадка {vessel.draftMeters.toFixed(2)} м
             </p>
           </div>
         </div>
@@ -150,7 +150,7 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
           <div className="mt-2.5 p-2 rounded bg-surface border border-hairline text-[11px] text-text-2 flex items-start gap-1.5">
             <Info className="w-3.5 h-3.5 text-warn shrink-0 mt-0.5" strokeWidth={1.5} />
             <span>
-              Порог безопасного запаса: 0.50 м (допущение). Текущий клиренс 0.25 м находится в зоне повышенного внимания.
+              Порог безопасного запаса: 0.50 м (допущение). Текущий клиренс 0.25 м находится в зоне повышенного контроля.
             </span>
           </div>
         )}
@@ -159,40 +159,40 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
           <div className="mt-2.5 p-2 rounded bg-surface border border-critical text-[11px] text-critical flex items-start gap-2">
             <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" strokeWidth={1.5} />
             <span>
-              Осадка {vessel.draftMeters.toFixed(2)} м превышает глубину бара {vkmskDepthMeters.toFixed(2)} м (дефицит 0.60 м). Риск посадки на мель в ВКМСК.
+              Осадка {vessel.draftMeters.toFixed(2)} м превышает глубину бара {vkmskDepthMeters.toFixed(2)} м (дефицит 0.60 м). Подход в T+20ч приведёт к посадке на мель.
             </span>
           </div>
         )}
       </div>
 
-      {/* Metrics Row: Unified ESG and Delay */}
+      {/* Metrics Row: Calculated Deltas */}
       <div className="grid grid-cols-3 gap-2 text-center text-xs">
         <div className="p-2.5 rounded-inner bg-surface-2 border border-hairline">
-          <span className="text-[10px] text-text-2 block mb-0.5">Задержка</span>
+          <span className="text-[10px] text-text-2 block mb-0.5">Δ Время в пути</span>
           <span
             className={`font-mono font-semibold tabular-nums ${
               isSlotSynced ? 'text-ok' : isCrisisActive ? 'text-critical' : 'text-text'
             }`}
           >
-            {isSlotSynced ? '+1.5 ч' : isCrisisActive ? '+72.0 ч' : '0.0 ч'}
+            {isSlotSynced ? '+10.1 ч' : isCrisisActive ? '+38.0 ч' : '0.0 ч'}
           </span>
         </div>
 
         <div className="p-2.5 rounded-inner bg-surface-2 border border-hairline">
-          <span className="text-[10px] text-text-2 block mb-0.5">Демередж</span>
+          <span className="text-[10px] text-text-2 block mb-0.5">Δ Доп. затраты</span>
           <span
             className={`font-mono font-semibold tabular-nums ${
               isSlotSynced ? 'text-ok' : isCrisisActive ? 'text-critical' : 'text-text'
             }`}
           >
-            {isSlotSynced ? '$0' : isCrisisActive ? '$45 000' : '$0'}
+            {isSlotSynced ? '+$16 400' : isCrisisActive ? '+$27 110' : '$0'}
           </span>
         </div>
 
         <div className="p-2.5 rounded-inner bg-surface-2 border border-hairline">
           <span className="text-[10px] text-text-2 block mb-0.5">CO2 экономия к авто</span>
           <span className="font-mono font-semibold tabular-nums text-ok">
-            +{isSlotSynced ? (esg.savingsVsRoadTons - 5.4).toFixed(1) : esg.savingsVsRoadTons.toFixed(1)} т
+            +{isSlotSynced ? '1015.3' : esg.savingsVsRoadTons.toFixed(1)} т
           </span>
         </div>
       </div>
@@ -211,7 +211,7 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
           </div>
 
           <p className="text-[11px] text-text-2 mb-3 leading-relaxed">
-            Перенаправление на глубоководный причал №{syncPlan.targetBerthNumber} (глубина {syncPlan.targetDepthMeters} м) + нитка РЖД {syncPlan.rzdTimetableSlotNumber}.
+            Переход с внешнего рейда в глубоководный порт Махачкала (глубина {syncPlan.targetDepthMeters} м, причал №{syncPlan.targetBerthNumber}) + сквозная нитка СКЖД {syncPlan.rzdTimetableSlotNumber} до Москвы.
           </p>
 
           {isSyncing && (
@@ -224,7 +224,7 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
                 2. Порт: причал №{syncPlan.targetBerthNumber} зарезервирован
               </div>
               <div className={syncStep >= 3 ? 'text-ok' : 'text-text-2'}>
-                3. Судно: курс обновлен в обход обмелевшего бара ВКМСК
+                3. Судно: курс изменен на Махачкалу (в обход ВКМСК)
               </div>
             </div>
           )}
@@ -248,9 +248,9 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
             <span>Трёхсторонний слот подтверждён:</span>
           </div>
           <div className="text-[11px] text-text-2 pl-6 space-y-0.5 font-mono">
-            <div>РЖД: нитка графика перенаправлена на СКЖД (ст. Махачкала-Порт)</div>
-            <div>Порт: причал №4 (глубина 6.80 м) выделен под разгрузку</div>
-            <div>Судно: курс обновлен в обход обмелевшего бара ВКМСК</div>
+            <div>РЖД: сквозная нитка СКЖД №2042 согласована до ст. Белый Раст (Москва)</div>
+            <div>Порт: причал №4 (глубина 6.80 м, кран 32 т) готов к приёму 218 TEU</div>
+            <div>Судно: курс изменён на Махачкалу по глубоководному морю в обход ВКМСК</div>
           </div>
         </div>
       )}

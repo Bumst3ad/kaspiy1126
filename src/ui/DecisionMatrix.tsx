@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Check,
   X,
@@ -8,7 +8,10 @@ import {
   ShieldCheck,
   Clock,
   DollarSign,
-  Leaf
+  Leaf,
+  ChevronDown,
+  ChevronUp,
+  HelpCircle
 } from 'lucide-react';
 import { DecisionScenario } from '../domain/scenarioDecision';
 
@@ -29,6 +32,14 @@ export const DecisionMatrix: React.FC<DecisionMatrixProps> = ({
   isSlotSynced,
   isSyncing,
 }) => {
+  // Состояние раскрытых формул для каждого сценария
+  const [expandedScenarioId, setExpandedScenarioId] = useState<string | null>(null);
+
+  const toggleFormulas = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedScenarioId((prev) => (prev === id ? null : id));
+  };
+
   return (
     <div className="glass-panel rounded-panel p-5 flex flex-col gap-4 text-text select-none border border-hairline">
       {/* Title */}
@@ -44,13 +55,13 @@ export const DecisionMatrix: React.FC<DecisionMatrixProps> = ({
               </span>
             </div>
             <p className="text-[11px] text-text-2 mt-0.5">
-              Сравнение альтернатив ликвидации узкого места на баре ВКМСК (151–155 км)
+              Входящий рейс Амирабад → Астрахань. Анализ альтернатив на внешнем рейде (км 188+)
             </p>
           </div>
         </div>
 
         <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-surface-2 text-text-2 border border-hairline">
-          3 сценария
+          3 альтернативы
         </span>
       </div>
 
@@ -59,6 +70,7 @@ export const DecisionMatrix: React.FC<DecisionMatrixProps> = ({
         {scenarios.map((scenario) => {
           const isSelected = selectedScenarioId === scenario.id;
           const isMakhachkala = scenario.id === 'makhachkala';
+          const isExpanded = expandedScenarioId === scenario.id;
 
           return (
             <div
@@ -94,6 +106,21 @@ export const DecisionMatrix: React.FC<DecisionMatrixProps> = ({
                     {scenario.subtitle}
                   </p>
                 </div>
+
+                {/* Button to open calculation breakdown */}
+                <button
+                  onClick={(e) => toggleFormulas(scenario.id, e)}
+                  className="px-2 py-1 rounded bg-surface border border-hairline text-[10px] text-text-2 hover:text-text flex items-center gap-1 transition-all cursor-pointer"
+                  title="Показать математические формулы и исходные данные"
+                >
+                  <HelpCircle className="w-3 h-3 text-accent" strokeWidth={1.5} />
+                  <span>Формулы</span>
+                  {isExpanded ? (
+                    <ChevronUp className="w-3 h-3" />
+                  ) : (
+                    <ChevronDown className="w-3 h-3" />
+                  )}
+                </button>
               </div>
 
               {/* Delta Metrics Row: Δ время, Δ $, Δ CO2 */}
@@ -105,7 +132,7 @@ export const DecisionMatrix: React.FC<DecisionMatrixProps> = ({
                   </span>
                   <span
                     className={`font-semibold ${
-                      scenario.deltaHours > 24 ? 'text-critical' : 'text-ok'
+                      scenario.deltaHours > 20 ? 'text-critical' : 'text-ok'
                     }`}
                   >
                     +{scenario.deltaHours} ч
@@ -119,7 +146,7 @@ export const DecisionMatrix: React.FC<DecisionMatrixProps> = ({
                   </span>
                   <span
                     className={`font-semibold ${
-                      scenario.deltaCostUsd > 10000 ? 'text-critical' : 'text-text'
+                      scenario.deltaCostUsd > 20000 ? 'text-critical' : 'text-text'
                     }`}
                   >
                     +${scenario.deltaCostUsd.toLocaleString()}
@@ -136,6 +163,30 @@ export const DecisionMatrix: React.FC<DecisionMatrixProps> = ({
                   </span>
                 </div>
               </div>
+
+              {/* Expandable Box: Как считалось (формулы) */}
+              {isExpanded && (
+                <div className="my-2.5 p-2.5 rounded bg-surface border border-accent text-[10px] font-mono space-y-1.5 text-text-2">
+                  <div className="text-accent font-semibold flex items-center gap-1">
+                    Математический расчёт параметров:
+                  </div>
+                  <div>
+                    <span className="text-text">Время:</span> {scenario.calculationDetails.timeFormula}
+                  </div>
+                  <div>
+                    <span className="text-text">Затраты:</span> {scenario.calculationDetails.costFormula}
+                  </div>
+                  <div>
+                    <span className="text-text">Эмиссия:</span> {scenario.calculationDetails.co2Formula}
+                  </div>
+                  <div className="pt-1 border-t border-divider space-y-0.5 text-[9px]">
+                    <span className="text-text-2 block">Допущения и нормативы:</span>
+                    {scenario.calculationDetails.assumptions.map((a, idx) => (
+                      <div key={idx}>· {a}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Feasibility Checklist: 4 parameters */}
               <div className="space-y-1 bg-surface p-2 rounded border border-hairline text-[10px] font-mono">

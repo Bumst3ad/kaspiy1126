@@ -20,9 +20,9 @@ export const App: React.FC = () => {
 
   const [cargo, setCargo] = useState(INITIAL_CARGO);
 
-  // Предиктивный гидрологический профиль на 72 часа
+  // Предиктивный гидрологический профиль на 72 часа (с плановым ETA на бар в T+20ч)
   const hydroForecast = useMemo(() => {
-    return generateHydroTimeline(INITIAL_VESSEL.draftMeters, isCrisisActive);
+    return generateHydroTimeline(INITIAL_VESSEL.draftMeters, isCrisisActive, 20);
   }, [isCrisisActive]);
 
   // Интерполированная точка в выбранный час на таймлайне
@@ -30,20 +30,26 @@ export const App: React.FC = () => {
     return getInterpolatedHydroPoint(hydroForecast, currentHour);
   }, [hydroForecast, currentHour]);
 
-  // Оценка сценариев при риске
+  // Оценка сценариев при риске на основе точных формул
   const scenarios = useMemo(() => {
-    return evaluateDecisionScenarios(INITIAL_VESSEL.draftMeters, currentHydroPoint.depthMeters);
-  }, [currentHydroPoint.depthMeters]);
+    return evaluateDecisionScenarios(
+      INITIAL_VESSEL.draftMeters,
+      currentHydroPoint.depthMeters,
+      hydroForecast.riskWindow.durationHours,
+      hydroForecast.vesselEtaBarHour,
+      hydroForecast.riskWindow.endHour
+    );
+  }, [currentHydroPoint.depthMeters, hydroForecast]);
 
-  // Динамическое состояние судна, синхронизированное с бегунком времени
+  // Динамическое состояние судна, синхронизированное с входящим рейсом
   const vessel = useMemo(() => {
     if (isSlotSynced) {
       return {
         ...INITIAL_VESSEL,
         status: 'rerouted' as const,
-        destination: 'Порт Махачкала (причал №4, глубина 6.8 м) → Мумбаи (Индия)',
-        lat: 43.40,
-        lon: 47.60,
+        destination: 'Порт Махачкала (причал №4, глубина 6.8 м) → СКЖД → Москва',
+        lat: 43.60,
+        lon: 47.65,
       };
     }
 
@@ -61,7 +67,7 @@ export const App: React.FC = () => {
     if (!isCrisisActive) {
       setIsCrisisActive(true);
       setIsSlotSynced(false);
-      setCurrentHour(24); // Автоматически перемещаем бегунок в пик сгона (T+24ч)
+      setCurrentHour(20); // Перемещаем бегунок точно на час планового подхода к бару (T+20ч)
     } else {
       handleReset();
     }
@@ -95,7 +101,8 @@ export const App: React.FC = () => {
     }));
   };
 
-  const isRiskState = currentHydroPoint.isRisk || isCrisisActive;
+  // Тревога зависит от того, активен ли кризис и попадает ли подход судна в окно риска
+  const isRiskState = (isCrisisActive && hydroForecast.isEtaInRiskWindow) || currentHydroPoint.isRisk;
 
   return (
     <div className="min-h-screen bg-base text-text flex flex-col font-sans select-none">
@@ -124,7 +131,7 @@ export const App: React.FC = () => {
             />
           </div>
 
-          {/* Предиктивный график под картой с ползунком времени */}
+          {/* Предиктивный график под картой с маркером ETA и ползунком времени */}
           <HydroChart
             profile={hydroForecast}
             currentPoint={currentHydroPoint}

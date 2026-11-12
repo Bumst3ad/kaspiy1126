@@ -1,6 +1,8 @@
 import { VesselData, CargoManifest } from './types';
 
 // MOCK: Вымышленное судно для тестирования (согласно разделу 6 AGENTS.md)
+// СЮЖЕТ: Входящий рейс с юга Каспия в РФ (МТК «Север-Юг»)
+// Маршрут: Порт Амирабад (Иран) -> Астрахань (ВКМСК) -> Москва (ТЛЦ Белый Раст)
 export const INITIAL_VESSEL: VesselData = {
   id: 'VESSEL-DEMO-01',
   name: 'MV Demo-01',
@@ -11,13 +13,15 @@ export const INITIAL_VESSEL: VesselData = {
   lengthMeters: 141.0,
   capacityTeu: 240,
   currentLoadTeu: 218,
-  cargoType: 'Карбамид гранулированный (марка Б)',
+  cargoType: 'Полиэтилен высокого давления и полимеры',
   cargoTonnage: 4360,
-  origin: 'Москва (терминал Белый Раст)',
-  destination: 'Порт Энзели (терминал Каспиан, Иран) → Мумбаи (Индия)',
-  lat: 45.45, // 138-й км ВКМСК на подходе к лимитирующему бару (не перекрывает Астрахань)
-  lon: 47.65,
-  speedKnots: 10.2,
+  origin: 'Порт Амирабад (Иран)',
+  destination: 'Астрахань (ВКМСК) → ТЛЦ Белый Раст (Москва)',
+  // Судно находится на внешнем глубоководном рейде ВКМСК в открытом Каспийском море (км 188+)
+  // Глубина здесь 9.5 м, путь свободен как для входа в канал на север, так и для маневра на юго-запад к Махачкале
+  lat: 44.75,
+  lon: 47.92,
+  speedKnots: 10.2, // ~18.9 км/ч
   status: 'normal',
   provenance: 'synthetic',
 };
@@ -25,10 +29,10 @@ export const INITIAL_VESSEL: VesselData = {
 // MOCK: Цифровой двойник партии груза
 export const INITIAL_CARGO: CargoManifest = {
   manifestId: 'e-CMR-2026-DEMO-991',
-  shipper: 'ПАО АгроХим Волга',
-  consignee: 'Caspian Petrochem Ltd (Мумбаи)',
-  cargoDescription: 'Карбамид гранулированный, марка Б',
-  hsCode: '3102 10 100 0',
+  shipper: 'Amirabad Petrochemical Complex (Иран)',
+  consignee: 'ПАО «СИБУР Холдинг» / ТЛЦ «Белый Раст» (Москва)',
+  cargoDescription: 'Полиэтилен гранулированный (марка ПВД 15803-020)',
+  hsCode: '3901 20 900 0',
   weightTons: 4360,
   eSealId: 'IoT-SEAL-DEMO-771',
   eSealStatus: 'intact',

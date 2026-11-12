@@ -19,17 +19,17 @@ const VKMSK_SECTORS = {
     [45.7833, 47.5500], // 75 км (Порт Оля)
     [45.5600, 47.6200], // 110 км
     [45.4200, 47.6800], // 135 км
-    [45.3000, 47.7100], // 151 км (начало лимитирующего бара)
+    [45.3000, 47.7100], // 151 км (северный край лимитирующего бара)
   ] as L.LatLngExpression[],
   bar151_155: [
     [45.3000, 47.7100], // 151 км
     [45.2700, 47.7250], // 153 км
-    [45.2400, 47.7400], // 155 км (конец лимитирующего бара)
+    [45.2400, 47.7400], // 155 км (южный край лимитирующего бара)
   ] as L.LatLngExpression[],
   lower: [
     [45.2400, 47.7400], // 155 км
     [45.0600, 47.8000], // 170 км
-    [44.8500, 47.8500], // 188 км (выход в открытое море)
+    [44.8500, 47.8500], // 188 км (морской вход в канал)
   ] as L.LatLngExpression[],
 };
 
@@ -45,15 +45,14 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
   const canalLayerRef = useRef<L.LayerGroup | null>(null);
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
-  const hazardLayerRef = useRef<L.LayerGroup | null>(null);
 
   // Initialize map once
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
-    // Центрируем и приближаем на Северный Каспий и ВКМСК
+    // Центрируем и приближаем на Северный Каспий, внешний рейд и ВКМСК
     const map = L.map(mapContainerRef.current, {
-      center: [44.6, 48.8],
+      center: [44.5, 48.6],
       zoom: 6.8,
       zoomControl: true,
       attributionControl: true,
@@ -73,12 +72,10 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
     const canalGroup = L.layerGroup().addTo(map);
     const routeGroup = L.layerGroup().addTo(map);
     const markersGroup = L.layerGroup().addTo(map);
-    const hazardGroup = L.layerGroup().addTo(map);
 
     canalLayerRef.current = canalGroup;
     routeLayerRef.current = routeGroup;
     markersLayerRef.current = markersGroup;
-    hazardLayerRef.current = hazardGroup;
     mapInstanceRef.current = map;
 
     return () => {
@@ -87,23 +84,20 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
     };
   }, []);
 
-  // Update dynamic layers (canal, routes, markers, hazard)
+  // Update dynamic layers (canal, routes, markers)
   useEffect(() => {
     const map = mapInstanceRef.current;
     const canalGroup = canalLayerRef.current;
     const routeGroup = routeLayerRef.current;
     const markersGroup = markersLayerRef.current;
-    const hazardGroup = hazardLayerRef.current;
 
-    if (!map || !canalGroup || !routeGroup || !markersGroup || !hazardGroup) return;
+    if (!map || !canalGroup || !routeGroup || !markersGroup) return;
 
     canalGroup.clearLayers();
     routeGroup.clearLayers();
     markersGroup.clearLayers();
-    hazardGroup.clearLayers();
 
-    // 1. Линия ВКМСК (0-188 км) с разметкой километров и раскраской глубин
-    // Верхняя часть канала (0-151 км)
+    // 1. Трасса ВКМСК (0-188 км)
     const upperCanal = L.polyline(VKMSK_SECTORS.upper, {
       color: 'var(--accent)',
       weight: 3.5,
@@ -117,7 +111,7 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
     );
     canalGroup.addLayer(upperCanal);
 
-    // Лимитирующий бар (151-155 км) — критический участок обмеления
+    // Лимитирующий бар (151-155 км)
     const barColor = isCrisisActive ? 'var(--critical)' : 'var(--warn)';
     const barWeight = isCrisisActive ? 6.5 : 4.5;
     const barLine = L.polyline(VKMSK_SECTORS.bar151_155, {
@@ -133,7 +127,7 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
       } text-[10px] font-mono">
         Лимитирующий бар ВКМСК (151–155 км)<br/>
         Глубина: ${vkmskDepthMeters.toFixed(2)} м · Осадка: ${vessel.draftMeters.toFixed(2)} м<br/>
-        ${isCrisisActive ? 'Внимание: сгон воды, риск мели!' : 'Минимальный запас (допущение)'}
+        ${isCrisisActive ? 'Внимание: сгон воды! Судно сядет на мель' : 'Минимальный запас (допущение)'}
       </div>`,
       { permanent: isCrisisActive, direction: 'right', className: 'tactical-tooltip' }
     );
@@ -145,20 +139,15 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
       weight: 3.5,
       opacity: 0.85,
     });
-    lowerCanal.bindTooltip(
-      `<div class="px-2 py-1 rounded bg-surface border border-hairline text-text text-[10px] font-mono">
-        ВКМСК (155–188 км): выход в глубоководный Каспий
-      </div>`,
-      { className: 'tactical-tooltip' }
-    );
     canalGroup.addLayer(lowerCanal);
 
-    // Километровые пикеты ВКМСК
+    // Километровые пикеты ВКМСК и внешний рейд
     const milestones = [
       { pos: [46.3497, 48.0326] as L.LatLngExpression, label: '0 км · Астрахань' },
       { pos: [45.7833, 47.5500] as L.LatLngExpression, label: '75 км · Оля' },
       { pos: [45.2700, 47.7250] as L.LatLngExpression, label: '151–155 км · Бар' },
-      { pos: [44.8500, 47.8500] as L.LatLngExpression, label: '188 км · Море' },
+      { pos: [44.8500, 47.8500] as L.LatLngExpression, label: '188 км · Вход в канал' },
+      { pos: [44.7500, 47.9200] as L.LatLngExpression, label: '188+ км · Внешний рейд (глубина 9.5 м)' },
     ];
 
     milestones.forEach((m) => {
@@ -169,30 +158,33 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
           </div>
         `,
         className: 'canal-milestone',
-        iconSize: [80, 18],
-        iconAnchor: [40, 9],
+        iconSize: [95, 18],
+        iconAnchor: [48, 9],
       });
       canalGroup.addLayer(L.marker(m.pos, { icon: milestoneIcon }));
     });
 
-    // 2. Морские маршруты (МТК штатный vs Caspian Sync-Slot)
-    const openSeaRoute: L.LatLngExpression[] = [
-      [44.8500, 47.8500], // 188 км ВКМСК
-      [43.6000, 48.6000],
-      [40.5000, 50.0000],
-      [37.4744, 49.4628], // Порт Энзели (терминал Каспиан)
+    // 2. Морские маршруты (Входящий рейс из Ирана)
+    // Плановый маршрут: Иран (Амирабад) -> Внешний рейд (188+ км) -> Канал 188-0 км -> Астрахань
+    const plannedInboundRoute: L.LatLngExpression[] = [
+      [36.8522, 53.3761], // Порт Амирабад (Иран)
+      [40.5000, 50.8000], // Открытое Каспийское море
+      [44.7500, 47.9200], // Внешний рейд ВКМСК (км 188+)
+      [44.8500, 47.8500], // Вход в канал 188 км
+      [45.2700, 47.7250], // Бар 151-155 км
+      [45.7833, 47.5500], // Порт Оля (75 км)
+      [46.3497, 48.0326], // Порт Астрахань (0 км)
     ];
 
+    // Альтернативный маршрут Sync-Slot: с внешнего рейда (188+ км) поворот на ЮЗ в глубоководную Махачкалу (в обход канала!)
     const syncSlotMakhachkalaRoute: L.LatLngExpression[] = [
-      [45.45, 47.65], // Точка маневра судна (обход обмелевшего бара)
-      [43.80, 47.80],
+      [44.7500, 47.9200], // Внешний глубоководный рейд ВКМСК (в открытом море, глубина 9.5 м)
+      [43.8000, 47.7500], // Глубоководный морской переход (глубины >18 м)
       [42.9833, 47.5000], // Порт Махачкала (причал №4, глубина 6.8 м)
-      [40.0000, 49.8000],
-      [37.4744, 49.4628], // Порт Энзели
     ];
 
     if (!isSlotSynced) {
-      const seaLine = L.polyline(openSeaRoute, {
+      const seaLine = L.polyline(plannedInboundRoute, {
         color: isCrisisActive ? 'var(--critical)' : 'var(--accent)',
         weight: 2.5,
         opacity: isCrisisActive ? 0.6 : 0.8,
@@ -200,14 +192,14 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
       });
       routeGroup.addLayer(seaLine);
     } else {
-      // Старый маршрут приглушен
-      const oldLine = L.polyline(openSeaRoute, {
+      // Старый маршрут в обмелевший канал перечеркнут/приглушен
+      const oldLine = L.polyline(plannedInboundRoute.slice(2), {
         color: 'var(--divider)',
         weight: 1.5,
-        opacity: 0.4,
+        opacity: 0.35,
         dashArray: '3, 6',
       });
-      // Новый согласованный маршрут через Махачкалу
+      // Новый глубоководный маршрут в Махачкалу в обход канала
       const syncLine = L.polyline(syncSlotMakhachkalaRoute, {
         color: 'var(--ok)',
         weight: 3.5,
@@ -283,9 +275,9 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
       markersGroup.addLayer(marker);
     });
 
-    // 4. Судно: расположено на 138-м км ВКМСК (на подходе к бару 151-155 км, не налезает на Астрахань)
+    // 4. Судно: на внешнем рейде ВКМСК (км 188+)
     const vesselPos: L.LatLngExpression = isSlotSynced
-      ? [43.40, 47.60] // Курс на Махачкалу
+      ? [43.60, 47.65] // На глубоководном переходе в Махачкалу
       : [vessel.lat, vessel.lon];
 
     const vesselColor =
@@ -322,13 +314,9 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
             <span class="font-semibold text-text">${vessel.name}</span>
             <span class="text-[10px] font-mono text-text-2 bg-surface-2 px-1.5 py-0.5 rounded">${vessel.flag}</span>
           </div>
-          <p class="text-[10px] text-text-2 font-mono mt-0.5">IMO ${vessel.imo} · ${vessel.currentLoadTeu}/${vessel.capacityTeu} TEU · ${vessel.cargoTonnage} т</p>
+          <p class="text-[10px] text-text-2 font-mono mt-0.5">Входящий рейс · IMO ${vessel.imo} · ${vessel.currentLoadTeu} TEU · ${vessel.cargoTonnage} т</p>
         </div>
         <div class="space-y-1 text-text-2 text-[11px]">
-          <div class="flex justify-between">
-            <span>Тип судна:</span>
-            <span class="font-mono text-text">Volgo-Max (до 6% флота)</span>
-          </div>
           <div class="flex justify-between">
             <span>Осадка судна:</span>
             <span class="font-mono text-warn font-semibold">${vessel.draftMeters.toFixed(2)} м</span>
@@ -338,8 +326,12 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
             <span class="font-mono text-text">${vessel.speedKnots} узлов</span>
           </div>
           <div class="flex justify-between">
-            <span>Позиция:</span>
-            <span class="font-mono text-text">${isSlotSynced ? 'Курс на Махачкалу' : 'ВКМСК, 138-й км'}</span>
+            <span>Текущая позиция:</span>
+            <span class="font-mono text-text">${isSlotSynced ? 'Переход в Махачкалу' : 'Внешний рейд (км 188+)'}</span>
+          </div>
+          <div class="flex justify-between">
+            <span>ETA на бар (151 км):</span>
+            <span class="font-mono ${isCrisisActive && !isSlotSynced ? 'text-critical font-bold' : 'text-ok'}">T+20ч (${isCrisisActive && !isSlotSynced ? 'Мель!' : 'Норма'})</span>
           </div>
           <div class="pt-1 border-t border-divider text-[10px] text-text-2">
             <span>Назначение: </span>
@@ -352,21 +344,21 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
 
     // Auto-pan if state changes
     if (isSlotSynced) {
-      map.flyTo([43.2, 47.8], 7.0, { duration: 1.2 });
+      map.flyTo([43.4, 47.8], 7.0, { duration: 1.2 });
     } else if (isCrisisActive) {
-      map.flyTo([45.35, 47.70], 8.0, { duration: 1.2 });
+      map.flyTo([44.75, 47.92], 7.2, { duration: 1.2 });
     }
   }, [isCrisisActive, isSlotSynced, vkmskDepthMeters, ports, vessel]);
 
   return (
-    <div className="relative w-full h-full min-h-[580px] rounded-panel overflow-hidden border border-hairline bg-base shadow-2xl">
-      <div ref={mapContainerRef} className="w-full h-full min-h-[580px]" />
+    <div className="relative w-full h-full min-h-[480px] rounded-panel overflow-hidden border border-hairline bg-base shadow-2xl">
+      <div ref={mapContainerRef} className="w-full h-full min-h-[480px]" />
 
       {/* Floating Legend */}
       <div className="absolute bottom-5 left-5 z-[1000] glass-panel px-3.5 py-2.5 rounded-inner text-xs flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-accent" />
-          <span className="text-[11px] text-text font-medium">ВКМСК (0–188 км)</span>
+          <span className="text-[11px] text-text font-medium">Трасса ВКМСК (188 км)</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-warn" />
@@ -375,13 +367,13 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
         {isCrisisActive && (
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-critical" />
-            <span className="text-[11px] text-critical font-medium">Сгон воды (-0.60 м)</span>
+            <span className="text-[11px] text-critical font-medium">Сгон на баре (-0.60 м)</span>
           </div>
         )}
         {isSlotSynced && (
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-ok" />
-            <span className="text-[11px] text-ok font-medium">Слот: Махачкала (6.8 м)</span>
+            <span className="text-[11px] text-ok font-medium">Маршрут: Махачкала (6.8 м)</span>
           </div>
         )}
       </div>
