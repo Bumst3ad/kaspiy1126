@@ -51,31 +51,31 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm tracking-tight text-text">
+              <span className="font-semibold text-xs tracking-tight text-text">
                 {vessel.name}
               </span>
-              <span className="text-xs font-mono text-text-2 bg-surface-2 px-1.5 py-0.5 rounded border border-hairline">
+              <span className="text-[10px] font-mono text-text-2 bg-surface-2 px-1.5 py-0.5 rounded border border-hairline">
                 {vessel.flag}
               </span>
             </div>
-            <p className="text-xs text-text-2 mt-0.5">
-              Входящий рейс · IMO <span className="font-mono tabular-nums">{vessel.imo}</span> · <span className="font-mono tabular-nums">{vessel.currentLoadTeu}/{vessel.capacityTeu}</span> TEU · Осадка <span className="font-mono tabular-nums">{vessel.draftMeters.toFixed(2)}</span> м
+            <p className="text-[10px] text-text-2 font-mono mt-0.5">
+              Входящий рейс · IMO {vessel.imo} · {vessel.currentLoadTeu}/{vessel.capacityTeu} TEU · Осадка {vessel.draftMeters.toFixed(2)} м
             </p>
           </div>
         </div>
 
         {/* Status Pill: Короткий текст без переноса строк */}
-        <div className="px-2.5 py-0.5 rounded-full text-xs font-medium flex items-center gap-1.5 border border-hairline bg-surface-2 whitespace-nowrap shrink-0">
+        <div className="px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1.5 border border-hairline bg-surface-2 whitespace-nowrap shrink-0">
           <span
             className={`w-1.5 h-1.5 rounded-full shrink-0 ${
               isSlotSynced ? 'bg-ok' : isCritical ? 'bg-critical' : isWarn ? 'bg-warn' : 'bg-ok'
             }`}
           />
-          <span className="text-xs whitespace-nowrap">
+          <span className="text-[11px] whitespace-nowrap">
             {isSlotSynced
               ? 'Слот активен'
               : isCritical
-              ? `Риск мели ${actualClearance >= 0 ? '+' : ''}${actualClearance.toFixed(2)} м`
+              ? `Мель ${actualClearance >= 0 ? '+' : ''}${actualClearance.toFixed(2)} м`
               : isWarn
               ? `Контроль +${actualClearance.toFixed(2)} м`
               : `Запас +${actualClearance.toFixed(2)} м`}
@@ -88,18 +88,20 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
         className={`p-3 rounded-inner border transition-all ${
           isSlotSynced
             ? 'bg-ok-muted border-ok'
+            : isCritical
+            ? 'bg-critical-muted border-critical'
             : isWarn
             ? 'bg-warn-muted border-warn'
             : 'bg-surface-2 border-hairline'
         }`}
       >
         <div className="flex items-center justify-between mb-1.5 text-xs">
-          <span className="text-text-2 font-medium flex items-center gap-1.5 text-[11px]">
+          <span className="text-text-2 font-medium flex items-center gap-1.5 text-xs">
             <Anchor className="w-3.5 h-3.5 text-accent shrink-0" strokeWidth={1.5} />
             Запас под килем (UKC)
           </span>
           <span
-            className={`text-xs font-mono font-semibold tabular-nums ${
+            className={`text-xl font-mono font-bold tabular-nums ${
               isSlotSynced
                 ? 'text-ok'
                 : isCritical
@@ -115,23 +117,23 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
         </div>
 
         <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="bg-surface p-2 rounded-inner border border-hairline">
-            <span className="text-text-2 block text-[10px] mb-0.5">Осадка судна (факт)</span>
-            <span className="text-xs font-mono font-semibold tabular-nums text-text">
+          <div className="bg-surface p-2.5 rounded-inner border border-hairline">
+            <span className="text-text-2 block text-xs mb-0.5">Осадка судна (факт)</span>
+            <span className="text-xl font-mono font-bold tabular-nums text-text">
               {vessel.draftMeters.toFixed(2)} м
             </span>
           </div>
 
-          <div className="bg-surface p-2 rounded-inner border border-hairline">
-            <span className="text-text-2 block text-[10px] mb-0.5">
+          <div className="bg-surface p-2.5 rounded-inner border border-hairline">
+            <span className="text-text-2 block text-xs mb-0.5">
               {isSlotSynced ? 'Причал (Махачкала)' : 'Глубина бара (151–155 км)'}
             </span>
             <span
-              className={`text-xs font-mono font-semibold tabular-nums ${
+              className={`text-xl font-mono font-bold tabular-nums ${
                 isSlotSynced ? 'text-ok' : isCritical ? 'text-critical' : isWarn ? 'text-warn' : 'text-text'
               }`}
             >
-              {effectiveDepth.toFixed(2)} м {!isSlotSynced && <span className="text-[10px] text-text-2 font-normal">(цель 4.50)</span>}
+              {effectiveDepth.toFixed(2)} м {!isSlotSynced && <span className="text-xs text-text-2 font-normal">(цель 4.50)</span>}
             </span>
           </div>
         </div>

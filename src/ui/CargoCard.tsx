@@ -52,14 +52,14 @@ export const CargoCard: React.FC<CargoCardProps> = ({
                 Манифест {cargo.manifestId}
               </span>
             </div>
-            <p className="text-xs text-text-2 mt-0.5">
-              ТН ВЭД <span className="font-mono tabular-nums">{cargo.hsCode}</span> · <span className="font-mono tabular-nums">{cargo.weightTons}</span> т · {cargo.cargoDescription}
+            <p className="text-xs text-text-2 font-mono mt-0.5">
+              ТН ВЭД {cargo.hsCode} · {cargo.weightTons} т · {cargo.cargoDescription}
             </p>
           </div>
         </div>
 
         {/* Pre-clearance Pill */}
-        <div className="px-2.5 py-0.5 rounded-full text-xs font-medium flex items-center gap-1.5 border border-hairline bg-surface-2 whitespace-nowrap shrink-0">
+        <div className="px-2.5 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 border border-hairline bg-surface-2 whitespace-nowrap shrink-0">
           <span
             className={`w-1.5 h-1.5 rounded-full shrink-0 ${
               isPreCleared ? 'bg-ok' : 'bg-warn'
@@ -73,11 +73,11 @@ export const CargoCard: React.FC<CargoCardProps> = ({
 
       {/* Shipper & Consignee Row */}
       <div className="grid grid-cols-2 gap-2 text-xs">
-        <div className="bg-surface-2 p-2 rounded-inner border border-hairline">
+        <div className="bg-surface-2 p-2.5 rounded-inner border border-hairline">
           <span className="text-text-2 block text-xs mb-0.5">Отправитель</span>
           <span className="text-text font-medium text-xs truncate block">{cargo.shipper}</span>
         </div>
-        <div className="bg-surface-2 p-2 rounded-inner border border-hairline">
+        <div className="bg-surface-2 p-2.5 rounded-inner border border-hairline">
           <span className="text-text-2 block text-xs mb-0.5">Получатель</span>
           <span className="text-text font-medium text-xs truncate block">{cargo.consignee}</span>
         </div>
@@ -90,29 +90,29 @@ export const CargoCard: React.FC<CargoCardProps> = ({
             <Leaf className="w-3.5 h-3.5 text-ok shrink-0" strokeWidth={1.5} />
             Углеродный след (GLEC / ISO 14083)
           </span>
-          <span className="text-xs font-mono tabular-nums text-ok whitespace-nowrap font-semibold">
+          <span className="text-xs font-mono text-ok whitespace-nowrap font-semibold">
             -{esg.savingsPercent}% к авто
           </span>
         </div>
 
         <div className="grid grid-cols-3 gap-2 text-center text-xs">
-          <div className="bg-surface p-1.5 rounded-inner border border-hairline">
+          <div className="bg-surface p-2 rounded-inner border border-hairline">
             <span className="text-xs text-text-2 block mb-0.5">Море+Ж/Д</span>
-            <span className="font-mono text-sm text-text font-semibold tabular-nums">
+            <span className="font-mono text-xl text-text font-bold tabular-nums">
               {(esg.multimodalCo2Kg / 1000).toFixed(1)} т
             </span>
           </div>
 
-          <div className="bg-surface p-1.5 rounded-inner border border-hairline">
+          <div className="bg-surface p-2 rounded-inner border border-hairline">
             <span className="text-xs text-text-2 block mb-0.5">Авто (2950 км)</span>
-            <span className="font-mono text-sm text-text-2 tabular-nums">
+            <span className="font-mono text-xl text-text-2 tabular-nums">
               {(esg.roadAlternativeCo2Kg / 1000).toFixed(1)} т
             </span>
           </div>
 
-          <div className="bg-surface p-1.5 rounded-inner border border-hairline">
+          <div className="bg-surface p-2 rounded-inner border border-hairline">
             <span className="text-xs text-text-2 block mb-0.5">Экономия</span>
-            <span className="font-mono text-sm text-ok font-semibold tabular-nums">
+            <span className="font-mono text-xl text-ok font-bold tabular-nums">
               +{esg.savingsVsRoadTons.toFixed(1)} т
             </span>
           </div>
@@ -126,13 +126,13 @@ export const CargoCard: React.FC<CargoCardProps> = ({
             <Cpu className="w-3.5 h-3.5 text-accent shrink-0" strokeWidth={1.5} />
             Pre-clearance (Ledger-ready SHA-256)
           </span>
-          <span className="text-xs text-text-2 whitespace-nowrap">
-            Пломба: <span className="font-mono tabular-nums">{cargo.eSealId}</span>
+          <span className="text-xs font-mono text-text-2 whitespace-nowrap">
+            Пломба: {cargo.eSealId}
           </span>
         </div>
 
-        <div className="p-1.5 rounded bg-surface border border-hairline text-xs font-mono text-text-2 truncate">
-          Хеш: {ledgerHash ? `${ledgerHash.slice(0, 24)}...` : 'генерация...'}
+        <div className="p-2 rounded bg-surface border border-hairline text-xs font-mono text-text-2 truncate">
+          Хеш манифеста: {ledgerHash ? `${ledgerHash.slice(0, 24)}...` : 'генерация...'}
         </div>
 
         {!isPreCleared ? (
@@ -151,12 +151,12 @@ export const CargoCard: React.FC<CargoCardProps> = ({
             )}
           </button>
         ) : (
-          <div className="p-2 rounded bg-ok-muted border border-ok text-ok text-xs font-medium flex items-center justify-between gap-2">
+          <div className="p-2.5 rounded bg-ok-muted border border-ok text-ok text-xs font-medium flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
               <Check className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
-              <span>Pre-cleared: срок оформления <span className="font-mono tabular-nums">{hoursWithout}</span> ч → <span className="font-mono tabular-nums">{hoursWith}</span> ч</span>
+              <span>Pre-cleared: срок оформления {hoursWithout} ч → {hoursWith} ч</span>
             </div>
-            <span className="px-1.5 py-0.5 rounded text-[10px] bg-surface-2 text-text-2 border border-hairline whitespace-nowrap font-normal">
+            <span className="px-2 py-0.5 rounded text-xs bg-surface-2 text-text-2 border border-hairline whitespace-nowrap font-normal">
               Допущение
             </span>
           </div>

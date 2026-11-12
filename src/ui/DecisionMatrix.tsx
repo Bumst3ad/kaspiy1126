@@ -137,38 +137,38 @@ export const DecisionMatrix: React.FC<DecisionMatrixProps> = ({
               </button>
             </div>
 
-            <p className="text-[11px] text-text-2 leading-tight">
+            <p className="text-xs text-text-2 leading-relaxed">
               {recommendedScenario.subtitle}
             </p>
 
-            {/* Delta Metrics Row: 3 компактные карточки */}
-            <div className="grid grid-cols-3 gap-2 text-center text-xs">
-              <div className="bg-surface p-1.5 rounded-inner border border-hairline flex flex-col items-center justify-center">
-                <span className="text-text-2 flex items-center gap-1 text-[10px]">
-                  <Clock className="w-3 h-3 text-text-2" strokeWidth={1.5} />
+            {/* Delta Metrics Row: 3 компактные карточки с KPI 20-28px */}
+            <div className="grid grid-cols-3 gap-2.5 text-center text-xs">
+              <div className="bg-surface p-2 rounded-inner border border-hairline flex flex-col items-center justify-center">
+                <span className="text-xs text-text-2 flex items-center gap-1 mb-0.5">
+                  <Clock className="w-3.5 h-3.5 text-text-2" strokeWidth={1.5} />
                   Δ Время
                 </span>
-                <span className="font-semibold text-text font-mono tabular-nums text-xs">
+                <span className="font-bold text-text font-mono tabular-nums text-[20px] leading-tight">
                   +{recommendedScenario.deltaHours} ч
                 </span>
               </div>
 
-              <div className="bg-surface p-1.5 rounded-inner border border-hairline flex flex-col items-center justify-center">
-                <span className="text-text-2 flex items-center gap-1 text-[10px]">
-                  <DollarSign className="w-3 h-3 text-text-2" strokeWidth={1.5} />
+              <div className="bg-surface p-2 rounded-inner border border-hairline flex flex-col items-center justify-center">
+                <span className="text-xs text-text-2 flex items-center gap-1 mb-0.5">
+                  <DollarSign className="w-3.5 h-3.5 text-text-2" strokeWidth={1.5} />
                   Δ Затраты
                 </span>
-                <span className="font-semibold text-text font-mono tabular-nums text-xs">
+                <span className="font-bold text-text font-mono tabular-nums text-[20px] leading-tight">
                   +${recommendedScenario.deltaCostUsd.toLocaleString()}
                 </span>
               </div>
 
-              <div className="bg-surface p-1.5 rounded-inner border border-hairline flex flex-col items-center justify-center">
-                <span className="text-text-2 flex items-center gap-1 text-[10px]">
-                  <Leaf className="w-3 h-3 text-text-2" strokeWidth={1.5} />
+              <div className="bg-surface p-2 rounded-inner border border-hairline flex flex-col items-center justify-center">
+                <span className="text-xs text-text-2 flex items-center gap-1 mb-0.5">
+                  <Leaf className="w-3.5 h-3.5 text-text-2" strokeWidth={1.5} />
                   Δ CO2
                 </span>
-                <span className="font-semibold text-text font-mono tabular-nums text-xs">
+                <span className="font-bold text-text font-mono tabular-nums text-[20px] leading-tight">
                   +{recommendedScenario.deltaCo2Tons} т
                 </span>
               </div>
@@ -176,9 +176,12 @@ export const DecisionMatrix: React.FC<DecisionMatrixProps> = ({
 
             {/* Expandable Formulas Box */}
             {expandedScenarioId === recommendedScenario.id && (
-              <div className="p-2.5 rounded bg-surface border border-accent text-[11px] space-y-1 text-text-2">
+              <div className="p-3 rounded bg-surface border border-accent text-xs space-y-1.5 text-text-2">
                 <div className="text-accent font-semibold flex items-center gap-1 text-xs">
                   Математический расчёт:
+                </div>
+                <div>
+                  <span className="text-text">Вероятность мели:</span> {recommendedScenario.calculationDetails.groundingProbabilityFormula || 'P(глубина < осадка) = Φ((осадка - μ) / σ), где σ = (P90 - P10) / 2.563'}
                 </div>
                 <div>
                   <span className="text-text">Время:</span> {recommendedScenario.calculationDetails.timeFormula}
@@ -188,9 +191,6 @@ export const DecisionMatrix: React.FC<DecisionMatrixProps> = ({
                 </div>
                 <div>
                   <span className="text-text">Эмиссия:</span> {recommendedScenario.calculationDetails.co2Formula}
-                </div>
-                <div>
-                  <span className="text-text">Вероятность риска:</span> P(глубина &lt; осадка) = Φ((осадка − μ) / σ), σ = (P90 − P10) / 2.563
                 </div>
               </div>
             )}
@@ -278,67 +278,70 @@ export const DecisionMatrix: React.FC<DecisionMatrixProps> = ({
 
                     <div className="flex items-center gap-2">
                       {scenario.rejectionReason ? (
-                        <span className="px-2 py-0.5 rounded text-[10px] bg-surface border border-hairline text-text-2 font-medium flex items-center gap-1 shrink-0">
+                        <span className="px-2 py-0.5 rounded text-xs bg-surface-2 border border-hairline text-text-2 font-medium flex items-center gap-1">
                           <AlertTriangle className="w-3 h-3 text-critical shrink-0" strokeWidth={1.5} />
                           <span>{scenario.id === 'wait' ? 'Срыв слота >6 ч' : 'Нет плавкрана'}</span>
                         </span>
                       ) : (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-surface-2 border border-hairline text-text-2">
+                        <span className="px-2 py-0.5 rounded text-xs bg-surface-2 border border-hairline text-text-2">
                           Менее выгодно
                         </span>
                       )}
                       {isExpanded ? (
-                        <ChevronUp className="w-3 h-3 text-text-2" />
+                        <ChevronUp className="w-3.5 h-3.5 text-text-2" />
                       ) : (
-                        <ChevronDown className="w-3 h-3 text-text-2" />
+                        <ChevronDown className="w-3.5 h-3.5 text-text-2" />
                       )}
                     </div>
                   </div>
 
                   {/* Expanded Details: Все 3 дельты + риск */}
                   {isExpanded && (
-                    <div className="p-2.5 border-t border-hairline bg-surface-2 text-xs space-y-2">
-                      <div className="grid grid-cols-3 gap-1.5 text-center text-[10px]">
-                        <div className="p-1 rounded bg-surface border border-hairline">
-                          <span className="text-text-2 block">Δ Время</span>
-                          <span className="font-mono font-semibold text-text tabular-nums">+{scenario.deltaHours} ч</span>
+                    <div className="p-3 border-t border-hairline bg-surface-2 text-xs space-y-2">
+                      <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                        <div className="p-1.5 rounded bg-surface border border-hairline">
+                          <span className="text-text-2 block text-xs">Δ Время</span>
+                          <span className="font-mono font-semibold text-text tabular-nums text-sm">+{scenario.deltaHours} ч</span>
                         </div>
-                        <div className="p-1 rounded bg-surface border border-hairline">
-                          <span className="text-text-2 block">Δ Затраты</span>
-                          <span className="font-mono font-semibold text-text tabular-nums">+${scenario.deltaCostUsd.toLocaleString()}</span>
+                        <div className="p-1.5 rounded bg-surface border border-hairline">
+                          <span className="text-text-2 block text-xs">Δ Затраты</span>
+                          <span className="font-mono font-semibold text-text tabular-nums text-sm">+${scenario.deltaCostUsd.toLocaleString()}</span>
                         </div>
-                        <div className="p-1 rounded bg-surface border border-hairline">
-                          <span className="text-text-2 block">Δ CO2</span>
-                          <span className="font-mono font-semibold text-text tabular-nums">+{scenario.deltaCo2Tons} т</span>
+                        <div className="p-1.5 rounded bg-surface border border-hairline">
+                          <span className="text-text-2 block text-xs">Δ CO2</span>
+                          <span className="font-mono font-semibold text-text tabular-nums text-sm">+{scenario.deltaCo2Tons} т</span>
                         </div>
                       </div>
 
-                      <p className="text-text-2 text-[11px] leading-relaxed">
+                      <p className="text-text-2 text-xs leading-relaxed">
                         {scenario.subtitle}
                       </p>
                       {scenario.rejectionReason && (
-                        <div className="p-2 rounded bg-surface border border-hairline text-text-2 text-[11px] flex items-center gap-2">
-                          <AlertTriangle className="w-3.5 h-3.5 text-critical shrink-0" strokeWidth={1.5} />
-                          <span><strong>Фактор отказа:</strong> {scenario.rejectionReason}</span>
+                        <div className="p-2 rounded bg-surface border border-hairline text-text-2 text-xs flex items-start gap-1.5">
+                          <AlertTriangle className="w-3.5 h-3.5 text-critical shrink-0 mt-0.5" strokeWidth={1.5} />
+                          <span><strong>Причина отказа:</strong> {scenario.rejectionReason}</span>
                         </div>
                       )}
-                      <div className="space-y-1 bg-surface p-2 rounded text-[11px] text-text-2">
-                        <div className="flex justify-between">
+                      <div className="space-y-1.5 bg-surface p-2.5 rounded border border-hairline text-xs text-text-2">
+                        <div className="flex justify-between items-center">
                           <span>Осадка:</span>
-                          <span className={scenario.feasibility.draft ? 'text-ok' : 'text-critical'}>
-                            {scenario.feasibility.draftDetail}
+                          <span className={scenario.feasibility.draft ? 'text-ok flex items-center gap-1' : 'text-text-2 flex items-center gap-1'}>
+                            {!scenario.feasibility.draft && <AlertTriangle className="w-3 h-3 text-critical shrink-0" />}
+                            <span>{scenario.feasibility.draftDetail}</span>
                           </span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                           <span>Причал и кран:</span>
-                          <span className={scenario.feasibility.berthAndCrane ? 'text-ok' : 'text-critical'}>
-                            {scenario.feasibility.berthAndCraneDetail}
+                          <span className={scenario.feasibility.berthAndCrane ? 'text-ok flex items-center gap-1' : 'text-text-2 flex items-center gap-1'}>
+                            {!scenario.feasibility.berthAndCrane && <AlertTriangle className="w-3 h-3 text-critical shrink-0" />}
+                            <span>{scenario.feasibility.berthAndCraneDetail}</span>
                           </span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                           <span>Нитка РЖД:</span>
-                          <span className={scenario.feasibility.rzdSlot ? 'text-ok' : 'text-critical'}>
-                            {scenario.feasibility.rzdSlotDetail}
+                          <span className={scenario.feasibility.rzdSlot ? 'text-ok flex items-center gap-1' : 'text-text-2 flex items-center gap-1'}>
+                            {!scenario.feasibility.rzdSlot && <AlertTriangle className="w-3 h-3 text-critical shrink-0" />}
+                            <span>{scenario.feasibility.rzdSlotDetail}</span>
                           </span>
                         </div>
                       </div>
