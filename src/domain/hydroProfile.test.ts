@@ -3,7 +3,7 @@ import { generateHydroTimeline, getInterpolatedHydroPoint } from './hydroProfile
 
 describe('Hydro Profile & Predictive Timeline', () => {
   it('generates 72-hour timeline with detected 39-hour risk window during sgon wind', () => {
-    const profile = generateHydroTimeline(4.15, true, 20);
+    const profile = generateHydroTimeline(4.15, true, 20, 0.35);
     expect(profile.timeline.length).toBeGreaterThan(10);
     expect(profile.minDepthMeters).toBeLessThanOrEqual(3.55);
     expect(profile.riskWindow.hasRisk).toBe(true);
@@ -17,7 +17,7 @@ describe('Hydro Profile & Predictive Timeline', () => {
   });
 
   it('interpolates point at exact hour correctly', () => {
-    const profile = generateHydroTimeline(4.15, true, 20);
+    const profile = generateHydroTimeline(4.15, true, 20, 0.35);
     const pointAtT24 = getInterpolatedHydroPoint(profile, 24);
     expect(pointAtT24.hour).toBe(24);
     expect(pointAtT24.depthMeters).toBe(3.55);
@@ -26,7 +26,7 @@ describe('Hydro Profile & Predictive Timeline', () => {
   });
 
   it('calculates calm baseline when crisis mode is disabled', () => {
-    const profile = generateHydroTimeline(4.15, false, 20);
+    const profile = generateHydroTimeline(4.15, false, 20, 0.10);
     const pointAtT20 = getInterpolatedHydroPoint(profile, 20);
     expect(pointAtT20.depthMeters).toBe(4.4);
     expect(pointAtT20.clearanceMeters).toBe(0.25);

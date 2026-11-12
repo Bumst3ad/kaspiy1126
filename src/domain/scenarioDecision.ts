@@ -17,7 +17,7 @@ export interface ScenarioCalculationDetails {
 }
 
 export interface DecisionScenario {
-  id: 'wait' | 'makhachkala' | 'lighten';
+  id: 'wait' | 'makhachkala' | 'lighten' | 'pass';
   title: string;
   subtitle: string;
   deltaHours: number;
@@ -32,107 +32,160 @@ export interface DecisionScenario {
 }
 
 /**
- * Оценка 3 альтернативных сценариев при риске посадки на мель в ВКМСК
- * СЮЖЕТ: Входящий рейс из Ирана (Амирабад) на внешний рейд ВКМСК (км 188+)
- * Плановый подход к бару (151-155 км): T+20ч
- * Окно обмеления: T+15ч .. T+54ч (длительность 39ч)
+ * Динамическая экспертная модель принятия решений при проходе лимитирующего бара ВКМСК.
+ *
+ * Алгоритм реагирует на входные параметры (осадка, час прибытия ETA, заносимость, сгон):
+ * 1. Если осадка <= глубины (например, 3.40 м при глубине 3.55 м):
+ *    -> Действий не требуется. Штатный проход по графику.
+ * 2. Если ETA попадает в конец шторма (например, T+55ч..T+60ч), ожидание составляет <8 ч:
+ *    -> Лучший сценарий: «Ждать на внешнем рейде» (дешевле и быстрее ухода в другой порт).
+ * 3. Если ETA попадает в пик шторма (T+18ч..T+30ч), ожидание составляет >30 ч:
+ *    -> Лучший сценарий: «Caspian Sync-Slot (Махачкала)» (100% реализуемость, спасение от потери $27k).
  */
 export function evaluateDecisionScenarios(
   vesselDraftMeters = 4.15,
-  currentDepthMeters = 3.55,
-  windowDurationHours = 39,
-  arrivalHour = 20,
+  depthAtArrival = 3.55,
+  vesselEtaBarHour = 20,
   recoveryHour = 54
 ): DecisionScenario[] {
-  // 1. Сценарий: Ждать на внешнем рейде
-  // Время ожидания = (T восстановления [54ч] - T прибытия [20ч]) + 4ч формирование каравана / проводка = 38ч
-  const waitHours = Math.max(0, recoveryHour - arrivalHour) + 4.0; // 38.0 ч
-  const demurrageRatePerHour = 15000 / 24; // 625 USD/ч
-  const waitDemurrage = Math.round(waitHours * demurrageRatePerHour); // $23 750
-  const railcarsDemurrage = Math.round(waitHours * 70 * (120 / 95)); // $3 360
-  const totalWaitCost = waitDemurrage + railcarsDemurrage; // $27 110
-  // CO2 от работы вспомогательных ДГ судна на якоре: 0.035 т/ч MGO * 3.206 т CO2/т = 0.112 т/ч
-  const waitCo2 = Number((waitHours * 0.112).toFixed(1)); // +4.3 т
+  const clearance = Number((depthAtArrival - vesselDraftMeters).toFixed(2));
 
+  // ВЕТКА 1: Судно проходит без инцидента (например, типичная осадка 3.40 м при глубине 3.55 м)
+  if (clearance >= 0) {
+    const passScenario: DecisionScenario = {
+      id: 'pass',
+      title: 'Штатный проход по графику (ВКМСК)',
+      subtitle: `Осадка ${vesselDraftMeters.toFixed(2)} м проходит лимитирующий бар (глубина ${depthAtArrival.toFixed(2)} м, запас +${clearance.toFixed(2)} м)`,
+      deltaHours: 0.0,
+      deltaCostUsd: 0,
+      deltaCo2Tons: 0.0,
+      feasibility: {
+        draft: true,
+        draftDetail: `Осадка ${vesselDraftMeters.toFixed(2)} м < глубины ${depthAtArrival.toFixed(2)} м (запас +${clearance.toFixed(2)} м)`,
+        berthAndCrane: true,
+        berthAndCraneDetail: 'Причал B-1 и кран KR-1 в порту Астрахань готовы по графику',
+        rzdSlot: true,
+        rzdSlotDetail: 'Базовая нитка RZD-Slot-A04 подтверждена',
+        locomotive: true,
+        locomotiveDetail: 'Маневровый локомотив LOC-12 подан',
+      },
+      isFeasible: true,
+      isRecommended: true,
+      calculationDetails: {
+        timeFormula: 'ΔT = 0 ч (судно следует без отклонения от расписания)',
+        costFormula: 'Δ$ = $0 (штрафы и демередж отсутствуют)',
+        co2Formula: 'ΔCO2 = 0 т (плановый углеродный след рейса)',
+        assumptions: [
+          'Типичная осадка судов река-море на Каспии: 3.20-3.60 м',
+          'При запасе >=0 м судоходство не прерывается',
+        ],
+      },
+      provenance: 'assumption',
+    };
+
+    return [passScenario];
+  }
+
+  // ВЕТКА 2: Дефицит глубины на момент ETA (риск посадки на мель)
+  // Расчет времени ожидания восстановления уровня
+  const hoursToRecovery = Math.max(0, recoveryHour - vesselEtaBarHour);
+  // Если ETA после 54ч, то ожидание 0 или минимальное (проводка каравана)
+  const waitHours = hoursToRecovery > 0 ? Number((hoursToRecovery + 2.0).toFixed(1)) : 1.5;
+  const demurrageRatePerHour = 15000 / 24; // 625 USD/ч
+  const waitDemurrage = Math.round(waitHours * demurrageRatePerHour);
+  const railcarsDemurrage = Math.round(waitHours * 70 * (120 / 95)); // $3360 при 38ч
+  const totalWaitCost = waitDemurrage + railcarsDemurrage;
+  const waitCo2 = Number((waitHours * 0.112).toFixed(1));
+
+  // Анализ реализуемости ожидания (порог аннулирования слота принят за 6 часов, допущение)
+  const SLOT_CANCELLATION_THRESHOLD = 6.0;
+  const isWaitFeasible = waitHours <= SLOT_CANCELLATION_THRESHOLD;
+
+  // Динамическая рекомендация:
+  // Если ожидание короткое (<= 8 часов), ждать выгоднее, чем идти в Махачкалу!
+  const isWaitRecommended = waitHours <= 8.0;
+  const isMakhachkalaRecommended = !isWaitRecommended;
+
+  // 1. Сценарий: Ждать на внешнем рейде
   const waitScenario: DecisionScenario = {
     id: 'wait',
     title: 'Ждать на внешнем рейде',
-    subtitle: 'Стоянка на внешнем рейде (глубина 9.5 м) до спада ветра и подъема воды',
+    subtitle: `Стоянка на рейде до подъема уровня (ожидание ${waitHours} ч)`,
     deltaHours: waitHours,
     deltaCostUsd: totalWaitCost,
     deltaCo2Tons: waitCo2,
     feasibility: {
       draft: true,
       draftDetail: 'Глубина внешнего рейда 9.5 м безопасна для отстоя',
-      berthAndCrane: false,
-      berthAndCraneDetail: 'ОТКАЗ: Причальный слот в Астрахани аннулируется при опоздании >3 ч',
-      rzdSlot: false,
-      rzdSlotDetail: 'ОТКАЗ: Срыв графика РЖД, простой порожних платформ',
-      locomotive: false,
-      locomotiveDetail: 'ОТКАЗ: Локомотив отцеплен и переведен на другой наряд',
+      berthAndCrane: isWaitFeasible,
+      berthAndCraneDetail: isWaitFeasible
+        ? `Причал B-1 ожидает (задержка ${waitHours} ч в пределах нормы)`
+        : `ОТКАЗ: Задержка ${waitHours} ч превышает порог слота (${SLOT_CANCELLATION_THRESHOLD} ч, допущение)`,
+      rzdSlot: isWaitFeasible,
+      rzdSlotDetail: isWaitFeasible
+        ? 'Нитка RZD-Slot-A04 сдвинута в пределах технологического окна'
+        : 'ОТКАЗ: Срыв графика РЖД, простой порожних платформ',
+      locomotive: isWaitFeasible,
+      locomotiveDetail: isWaitFeasible
+        ? 'Локомотив LOC-12 зарезервирован'
+        : 'ОТКАЗ: Локомотив переведен на другой состав',
     },
-    isFeasible: false,
-    rejectionReason: `Аннулирование портового слота (порог >3 ч, фактическое ожидание ${waitHours} ч) и простой подвижного состава РЖД.`,
-    isRecommended: false,
+    isFeasible: isWaitFeasible,
+    rejectionReason: !isWaitFeasible
+      ? `Ожидание ${waitHours} ч превышает технологический порог удержания слота (${SLOT_CANCELLATION_THRESHOLD} ч, допущение) и влечет простой вагонов РЖД.`
+      : undefined,
+    isRecommended: isWaitRecommended,
     calculationDetails: {
-      timeFormula: `ΔT = (T_восстановления [${recoveryHour}ч] - T_прибытия [${arrivalHour}ч]) + 4ч проводки = ${waitHours} ч (окно на графике: ${windowDurationHours} ч)`,
-      costFormula: `Δ$ = ${waitHours}ч * ($15 000 / 24 судно) + $${railcarsDemurrage} (штраф за простой 70 вагонов РЖД) = +$${totalWaitCost.toLocaleString()}`,
-      co2Formula: `ΔCO2 = ${waitHours}ч * 0.035 т/ч расхода MGO судовыми ДГ * 3.206 т CO2/т топлива = +${waitCo2} т`,
+      timeFormula: `ΔT = max(0, ${recoveryHour}ч - ${vesselEtaBarHour}ч) + 2ч проводки = ${waitHours} ч`,
+      costFormula: `Δ$ = ${waitHours}ч * ($15 000 / 24 судно) + $${railcarsDemurrage} (штраф за простой вагонов) = +$${totalWaitCost.toLocaleString()}`,
+      co2Formula: `ΔCO2 = ${waitHours}ч * 0.035 т/ч расхода MGO судовыми ДГ * 3.206 = +${waitCo2} т`,
       assumptions: [
-        'Ставка чартера: $15 000/сут ($625/ч)',
-        'Окно обмеления: T+15ч..T+54ч (39 ч)',
-        'Расход MGO вспомогательными генераторами: 0.84 т/сут (IMO GHG Study)',
+        `Технологический порог ожидания слота: ${SLOT_CANCELLATION_THRESHOLD} ч (допущение)`,
+        'Ставка чартера судна: $15 000/сут ($625/ч)',
+        'Расход топлива ДГ на стоянке: 0.84 т/сут (IMO GHG Study)',
       ],
     },
     provenance: 'assumption',
   };
 
   // 2. Сценарий: Caspian Sync-Slot (Махачкала)
-  // Морской путь от внешнего рейда:
-  // До Махачкалы по глубокому морю: 213 км / 18.9 км/ч (10.2 узла) = 11.3 ч
-  // До Астрахани по каналу: 188 км / 14.8 км/ч (8 узлов) = 12.7 ч -> море быстрее на -1.4 ч!
-  // Ж/Д плечо до Москвы (ТЛЦ Белый Раст):
-  // Астрахань -> Москва: 1530 км / 45 км/ч = 34.0 ч
-  // Махачкала -> Москва (СКЖД): 1980 км / 45 км/ч = 44.0 ч (доп. плечо +450 км = +10.0 ч)
-  // Диспетчерская стыковка слота РЖД/Порт/Судно: +1.5 ч
-  // Итого ΔT = -1.4ч + 10.0ч + 1.5ч = +10.1 ч!
+  // Морской путь от внешнего рейда: 213 км / 18.9 км/ч (10.2 узла) = 11.3 ч (vs канал 188 км / 14.8 км/ч = 12.7 ч -> море быстрее на -1.4 ч)
+  // Доп. ж/д плечо СКЖД до Москвы: +450 км / 45 км/ч = +10.0 ч
+  // Диспетчерская стыковка: +1.5 ч
+  // Итого ΔT = +10.1 ч
   const deltaHoursMakhachkala = 10.1;
-  // Стоимость: доп. тариф СКЖД за 450 км для 4360 т (218 TEU): 4360 * 450 * 0.0105$ = $20 600
-  // Экономия на канальном и лоцманском сборе ВКМСК: -$4 200
-  // Итого Δ$ = 20600 - 4200 = $16 400
-  const deltaCostMakhachkala = 16400;
-  // CO2: ж/д плечо +450 км (450 * 4360 * 22г / 10^6 = +43.2 т) минус стоянка на якоре (4.3 т) = +38.9 т
-  // При этом суммарный маршрут экономит 1015 т CO2 относительно фур!
+  const deltaCostMakhachkala = 16400; // Доп. тариф СКЖД ($20 600) - сборы ВКМСК ($4 200)
   const deltaCo2Makhachkala = 38.9;
 
   const makhachkalaScenario: DecisionScenario = {
     id: 'makhachkala',
     title: 'Caspian Sync-Slot (Махачкала)',
-    subtitle: 'Переход в глубоководный незамерзающий порт Махачкала + сквозная нитка СКЖД',
+    subtitle: isMakhachkalaRecommended
+      ? 'Переход в глубоководный порт Махачкала + сквозная нитка СКЖД (100% реализуемо)'
+      : `Менее выгодно: переплата $${(deltaCostMakhachkala - totalWaitCost).toLocaleString()} ради экономии ${(waitHours - deltaHoursMakhachkala).toFixed(1)} ч`,
     deltaHours: deltaHoursMakhachkala,
     deltaCostUsd: deltaCostMakhachkala,
     deltaCo2Tons: deltaCo2Makhachkala,
     feasibility: {
       draft: true,
-      draftDetail: `Глубина 6.80 м > осадки ${vesselDraftMeters} м (запас +2.65 м)`,
+      draftDetail: `Глубина 6.80 м > осадки ${vesselDraftMeters} м (запас +${(6.80 - vesselDraftMeters).toFixed(2)} м)`,
       berthAndCrane: true,
-      berthAndCraneDetail: 'Причал №4 свободен, кран «Сокол» 32 т готов к перевалке 218 TEU',
+      berthAndCraneDetail: 'Глубоководный причал B-4 свободен, кран KR-2 (32 т) готов к перевалке 218 TEU',
       rzdSlot: true,
-      rzdSlotDetail: 'Сквозная нитка СКЖД №2042 зарезервирована диспетчером',
+      rzdSlotDetail: 'Сквозная нитка графика RZD-Slot-A17 согласована диспетчером',
       locomotive: true,
-      locomotiveDetail: 'Магистральный электровоз 2ЭС5К ст. Махачкала-Порт подан под погрузку',
+      locomotiveDetail: 'Магистральный локомотив LOC-41 подан под погрузку',
     },
     isFeasible: true,
-    isRecommended: true,
+    isRecommended: isMakhachkalaRecommended,
     calculationDetails: {
-      timeFormula: `ΔT = ΔT_море (11.3ч - 12.7ч = -1.4ч) + ΔT_ж/д (+450км / 45км/ч = +10.0ч) + стыковка слота (+1.5ч) = +${deltaHoursMakhachkala} ч`,
-      costFormula: `Δ$ = Доп. ж/д тариф СКЖД 450 км ($20 600 / $95 за TEU) - сборы ВКМСК ($4 200) = +$${deltaCostMakhachkala.toLocaleString()}`,
-      co2Formula: `ΔCO2 = +450 км электротяги РЖД (+43.2 т) - предотвращенные выбросы простоя судна (-4.3 т) = +${deltaCo2Makhachkala} т (экономия vs фур: 1015 т)`,
+      timeFormula: `ΔT = ΔT_море (11.3ч - 12.7ч = -1.4ч) + ΔT_ж/д (+450км / 45км/ч = +10.0ч) + стыковка (+1.5ч) = +${deltaHoursMakhachkala} ч`,
+      costFormula: `Δ$ = Доп. тариф ж/д плеча 450 км ($20 600 / $95 за TEU) - сборы ВКМСК ($4 200) = +$${deltaCostMakhachkala.toLocaleString()}`,
+      co2Formula: `ΔCO2 = +450 км электротяги (+43.2 т) - предотвращенная стоянка (-${waitCo2} т) = +${deltaCo2Makhachkala} т (экономия vs фур: 1015 т)`,
       assumptions: [
-        'Расстояние море: внешний рейд -> Махачкала 213 км (11.3 ч при 10.2 узла)',
-        'Ж/Д расстояние до Москвы: Астрахань 1530 км vs Махачкала 1980 км (Δ = +450 км)',
-        'Маршрутная скорость контейнерного поезда: 45 км/ч (1080 км/сут, график РЖД)',
-        'Тариф РЖД Прейскурант 10-01: $0.0105 за т·км',
+        'Морской переход: 213 км по глубоководному морю без захода в канал',
+        'Дополнительное ж/д плечо СКЖД до Москвы: +450 км (Прейскурант 10-01: $0.0105/т·км)',
+        'Скорость контейнерного поезда: 45 км/ч (1080 км/сут)',
       ],
     },
     provenance: 'assumption',
@@ -142,38 +195,46 @@ export function evaluateDecisionScenarios(
   const lighteningHours = 22.0;
   const lighteningCost = 18500;
   const lighteningCo2 = 2.1;
+  const targetReducedDraft = 3.50;
+  const isLighteningDraftFeasible = targetReducedDraft <= depthAtArrival;
 
   const lightenScenario: DecisionScenario = {
     id: 'lighten',
     title: 'Уменьшить загрузку (паузка)',
-    subtitle: 'Перевалка 48 TEU на баржу-паузку на внешнем рейде для снижения осадки до 3.50 м',
+    subtitle: `Перевалка 48 TEU на баржу-паузку на рейде для снижения осадки до ${targetReducedDraft.toFixed(2)} м`,
     deltaHours: lighteningHours,
     deltaCostUsd: lighteningCost,
     deltaCo2Tons: lighteningCo2,
     feasibility: {
-      draft: true,
-      draftDetail: `Осадка после отгрузки 48 TEU снизится до 3.50 м (< глубины ${currentDepthMeters} м)`,
+      draft: isLighteningDraftFeasible,
+      draftDetail: isLighteningDraftFeasible
+        ? `Осадка снизится до ${targetReducedDraft.toFixed(2)} м (проходит глубину ${depthAtArrival.toFixed(2)} м)`
+        : `ОТКАЗ: Осадка ${targetReducedDraft.toFixed(2)} м превышает экстремальное обмеление ${depthAtArrival.toFixed(2)} м`,
       berthAndCrane: false,
-      berthAndCraneDetail: 'ОТКАЗ: Плавкран ПК-12 Росморпорта занят в порту Оля (задержка >24 ч)',
+      berthAndCraneDetail: 'ОТКАЗ: Плавкран KR-Float-03 Росморпорта занят в порту Оля (задержка >24 ч)',
       rzdSlot: false,
-      rzdSlotDetail: 'ОТКАЗ: Дробление партии нарушает норматив цельного контейнерного поезда',
+      rzdSlotDetail: 'ОТКАЗ: Дробление партии нарушает норматив цельного поезда RZD-Slot-A04',
       locomotive: true,
       locomotiveDetail: 'Локомотив ожидает формирования полного состава',
     },
     isFeasible: false,
-    rejectionReason: 'Отсутствие сертифицированного плавкрана на рейде ВКМСК в течение 24 ч.',
+    rejectionReason: 'Отсутствие сертифицированного плавкрана на рейде ВКМСК в течение 24 ч и распад партии.',
     isRecommended: false,
     calculationDetails: {
-      timeFormula: `ΔT = Переход плавкрана из порта Оля (12ч) + Перевалка 48 TEU со скоростью 6 TEU/ч (8ч) + Документы (2ч) = +${lighteningHours} ч`,
-      costFormula: `Δ$ = Аренда плавкрана ПК-12 (смена 12ч) + буксир-толкач + баржа-паузка = +$${lighteningCost.toLocaleString()}`,
-      co2Formula: `ΔCO2 = 0.65 т бункерного топлива плавкрана и буксира * 3.206 = +${lighteningCo2} т`,
+      timeFormula: `ΔT = Переход плавкрана из порта Оля (12ч) + Перевалка 48 TEU (8ч) + Документы (2ч) = +${lighteningHours} ч`,
+      costFormula: `Δ$ = Аренда плавкрана KR-Float-03 + баржа-паузка Росморпорта = +$${lighteningCost.toLocaleString()}`,
+      co2Formula: `ΔCO2 = 0.65 т бункерного топлива плавкрана * 3.206 = +${lighteningCo2} т`,
       assumptions: [
-        'Разгрузка 48 TEU (960 т) снижает осадку с 4.15 м до 3.50 м (запас 5 см)',
-        'Ставка аренды плавкрана Росморпорта: 1.8 млн руб (~$18 500)',
+        'Разгрузка 48 TEU (960 т) снижает осадку с 4.15 м до 3.50 м',
+        'Аренда плавкрана: ~$18 500 за смену',
       ],
     },
     provenance: 'assumption',
   };
 
-  return [waitScenario, makhachkalaScenario, lightenScenario];
+  // Возвращаем в порядке приоритета: рекомендованный сценарий идет первым
+  const scenarios = [waitScenario, makhachkalaScenario, lightenScenario];
+  scenarios.sort((a, b) => (b.isRecommended ? 1 : 0) - (a.isRecommended ? 1 : 0));
+
+  return scenarios;
 }

@@ -15,39 +15,45 @@ export const App: React.FC = () => {
   const [isSlotSynced, setIsSlotSynced] = useState(false);
   const [isPreCleared, setIsPreCleared] = useState(false);
   const [currentHour, setCurrentHour] = useState(0);
+
+  // Интерактивные параметры реконструкции (осадка, наносы, ETA подхода на бар)
+  const [vesselDraft, setVesselDraft] = useState(4.15); // 4.15 м (Volgo-Max) или 3.40 м (типичная)
+  const [siltationMeters, setSiltationMeters] = useState(0.35); // Наносы после паводка по Минтрансу РФ (0.10 - 0.55 м)
+  const [vesselEtaBarHour, setVesselEtaBarHour] = useState(20); // Плановый час подхода к бару: T+10ч, T+20ч, T+58ч
+
   const [selectedScenarioId, setSelectedScenarioId] = useState<'wait' | 'makhachkala' | 'lighten'>('makhachkala');
   const [isSyncing, setIsSyncing] = useState(false);
 
   const [cargo, setCargo] = useState(INITIAL_CARGO);
 
-  // Предиктивный гидрологический профиль на 72 часа (с плановым ETA на бар в T+20ч)
+  // Предиктивный гидрологический профиль на 72 часа с учетом физики Минтранса РФ
   const hydroForecast = useMemo(() => {
-    return generateHydroTimeline(INITIAL_VESSEL.draftMeters, isCrisisActive, 20);
-  }, [isCrisisActive]);
+    return generateHydroTimeline(vesselDraft, isCrisisActive, vesselEtaBarHour, siltationMeters);
+  }, [vesselDraft, isCrisisActive, vesselEtaBarHour, siltationMeters]);
 
   // Интерполированная точка в выбранный час на таймлайне
   const currentHydroPoint = useMemo(() => {
     return getInterpolatedHydroPoint(hydroForecast, currentHour);
   }, [hydroForecast, currentHour]);
 
-  // Оценка сценариев при риске на основе точных формул
+  // Оценка сценариев при риске на основе динамического алгоритма
   const scenarios = useMemo(() => {
     return evaluateDecisionScenarios(
-      INITIAL_VESSEL.draftMeters,
-      currentHydroPoint.depthMeters,
-      hydroForecast.riskWindow.durationHours,
-      hydroForecast.vesselEtaBarHour,
+      vesselDraft,
+      hydroForecast.depthAtArrivalMeters,
+      vesselEtaBarHour,
       hydroForecast.riskWindow.endHour
     );
-  }, [currentHydroPoint.depthMeters, hydroForecast]);
+  }, [vesselDraft, hydroForecast.depthAtArrivalMeters, vesselEtaBarHour, hydroForecast.riskWindow.endHour]);
 
-  // Динамическое состояние судна, синхронизированное с входящим рейсом
+  // Динамическое состояние судна, синхронизированное с входящим рейсом и осадкой
   const vessel = useMemo(() => {
     if (isSlotSynced) {
       return {
         ...INITIAL_VESSEL,
+        draftMeters: vesselDraft,
         status: 'rerouted' as const,
-        destination: 'Порт Махачкала (причал №4, глубина 6.8 м) → СКЖД → Москва',
+        destination: 'Порт Махачкала (причал B-4, глубина 6.8 м) → СКЖД → Москва',
         lat: 43.60,
         lon: 47.65,
       };
@@ -56,18 +62,19 @@ export const App: React.FC = () => {
     const isRisk = currentHydroPoint.isRisk || (isCrisisActive && currentHour >= 12);
     return {
       ...INITIAL_VESSEL,
+      draftMeters: vesselDraft,
       status: isRisk ? ('risk' as const) : ('normal' as const),
       lat: currentHydroPoint.vesselLat,
       lon: currentHydroPoint.vesselLon,
     };
-  }, [isSlotSynced, currentHydroPoint, isCrisisActive, currentHour]);
+  }, [isSlotSynced, vesselDraft, currentHydroPoint, isCrisisActive, currentHour]);
 
   // Переключение симуляции сгонного ветра в ВКМСК
   const handleToggleCrisis = () => {
     if (!isCrisisActive) {
       setIsCrisisActive(true);
       setIsSlotSynced(false);
-      setCurrentHour(20); // Перемещаем бегунок точно на час планового подхода к бару (T+20ч)
+      setCurrentHour(vesselEtaBarHour); // Перемещаем бегунок точно на час планового подхода к бару
     } else {
       handleReset();
     }
@@ -89,6 +96,9 @@ export const App: React.FC = () => {
     setIsSlotSynced(false);
     setIsPreCleared(false);
     setCurrentHour(0);
+    setVesselDraft(4.15);
+    setSiltationMeters(0.35);
+    setVesselEtaBarHour(20);
     setSelectedScenarioId('makhachkala');
     setCargo(INITIAL_CARGO);
   };
@@ -131,29 +141,33 @@ export const App: React.FC = () => {
             />
           </div>
 
-          {/* Предиктивный график под картой с маркером ETA и ползунком времени */}
+          {/* Предиктивный график под картой с маркером ETA, ползунком времени и селекторами */}
           <HydroChart
             profile={hydroForecast}
             currentPoint={currentHydroPoint}
             currentHour={currentHour}
             onHourChange={setCurrentHour}
+            vesselDraft={vesselDraft}
+            onVesselDraftChange={setVesselDraft}
+            siltationMeters={siltationMeters}
+            onSiltationChange={setSiltationMeters}
+            vesselEtaBarHour={vesselEtaBarHour}
+            onEtaHourChange={setVesselEtaBarHour}
             isSlotSynced={isSlotSynced}
           />
         </section>
 
         {/* Right Inspector & Cargo Cards */}
         <section className="lg:col-span-5 flex flex-col gap-4 overflow-y-auto max-h-[calc(100vh-104px)] pr-1">
-          {/* Панель «Решение» при риске: Ждать / Махачкала / Уменьшить загрузку */}
-          {isRiskState && (
-            <DecisionMatrix
-              scenarios={scenarios}
-              selectedScenarioId={selectedScenarioId}
-              onSelectScenario={setSelectedScenarioId}
-              onApplySyncSlot={handleSyncSlot}
-              isSlotSynced={isSlotSynced}
-              isSyncing={isSyncing}
-            />
-          )}
+          {/* Панель «Решение» при риске: Динамическая рекомендация алгоритма */}
+          <DecisionMatrix
+            scenarios={scenarios}
+            selectedScenarioId={selectedScenarioId}
+            onSelectScenario={setSelectedScenarioId}
+            onApplySyncSlot={handleSyncSlot}
+            isSlotSynced={isSlotSynced}
+            isSyncing={isSyncing}
+          />
 
           {/* Карточка судна и гидро-радар */}
           <SyncSlotPanel
