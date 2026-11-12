@@ -51,27 +51,27 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-xs tracking-tight text-text">
+              <span className="font-semibold text-sm tracking-tight text-text">
                 {vessel.name}
               </span>
-              <span className="text-[10px] font-mono text-text-2 bg-surface-2 px-1.5 py-0.5 rounded border border-hairline">
+              <span className="text-xs font-mono text-text-2 bg-surface-2 px-1.5 py-0.5 rounded border border-hairline">
                 {vessel.flag}
               </span>
             </div>
-            <p className="text-[10px] text-text-2 font-mono mt-0.5">
-              Входящий рейс · IMO {vessel.imo} · {vessel.currentLoadTeu}/{vessel.capacityTeu} TEU · Осадка {vessel.draftMeters.toFixed(2)} м
+            <p className="text-xs text-text-2 mt-0.5">
+              Входящий рейс · IMO <span className="font-mono tabular-nums">{vessel.imo}</span> · <span className="font-mono tabular-nums">{vessel.currentLoadTeu}/{vessel.capacityTeu}</span> TEU · Осадка <span className="font-mono tabular-nums">{vessel.draftMeters.toFixed(2)}</span> м
             </p>
           </div>
         </div>
 
         {/* Status Pill: Короткий текст без переноса строк */}
-        <div className="px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1.5 border border-hairline bg-surface-2 whitespace-nowrap shrink-0">
+        <div className="px-2.5 py-0.5 rounded-full text-xs font-medium flex items-center gap-1.5 border border-hairline bg-surface-2 whitespace-nowrap shrink-0">
           <span
             className={`w-1.5 h-1.5 rounded-full shrink-0 ${
               isSlotSynced ? 'bg-ok' : isCritical ? 'bg-critical' : isWarn ? 'bg-warn' : 'bg-ok'
             }`}
           />
-          <span className="text-[11px] whitespace-nowrap">
+          <span className="text-xs whitespace-nowrap">
             {isSlotSynced
               ? 'Слот активен'
               : isCritical
