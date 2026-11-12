@@ -1,0 +1,113 @@
+:root {
+  --bg-base: #0D0E11;
+  --surface: #16171B;
+  --surface-2: #1C1C1E;
+  --hairline: rgba(255, 255, 255, 0.08);
+  --accent: #0A84FF;
+  --accent-muted: rgba(10, 132, 255, 0.15);
+  --ok: #30D158;
+  --ok-muted: rgba(48, 209, 88, 0.15);
+  --warn: #FF9F0A;
+  --warn-muted: rgba(255, 159, 10, 0.15);
+  --critical: #FF453A;
+  --critical-muted: rgba(255, 69, 58, 0.15);
+  --text: #FFFFFF;
+  --text-2: #8E8E93;
+  --divider: #3A3A3C;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-base);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.glass-panel {
+  background-color: rgba(22, 23, 27, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--hairline);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Minimalist scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--divider);
+  border-radius: 9999px;
+}
+
+/* Leaflet dark canvas overrides */
+.leaflet-container {
+  background-color: var(--bg-base) !important;
+  font-family: inherit !important;
+}
+
+.leaflet-control-attribution {
+  font-size: 10px !important;
+  color: var(--text-2) !important;
+  background: transparent !important;
+}
+
+.leaflet-control-attribution a {
+  color: var(--text-2) !important;
+  text-decoration: none !important;
+}
+
+.leaflet-control-zoom {
+  border: none !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+}
+
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out {
+  background-color: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--hairline) !important;
+  width: 32px !important;
+  height: 32px !important;
+  line-height: 30px !important;
+}
+
+.leaflet-control-zoom-in:hover,
+.leaflet-control-zoom-out:hover {
+  background-color: var(--surface-2) !important;
+  color: var(--accent) !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background: var(--surface) !important;
+  border: 1px solid var(--hairline) !important;
+  border-radius: 16px !important;
+  color: var(--text) !important;
+  padding: 0 !important;
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.5) !important;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+}
+
+.leaflet-popup-tip {
+  background: var(--surface) !important;
+  border: 1px solid var(--hairline) !important;
+}
+
+.leaflet-popup-close-button {
+  display: none !important;
+}
