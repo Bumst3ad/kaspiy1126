@@ -16,6 +16,7 @@ export interface HydroTimelinePoint {
   vesselLon: number;
   etaOffsetHours: number;
   demurrageUsd: number;
+  groundingProbabilityPercent: number; // P(глубина < осадка) по нормальному приближению
 }
 
 export interface HydroProfileForecast {
@@ -32,10 +33,51 @@ export interface HydroProfileForecast {
   isEtaInRiskWindow: boolean;
   depthAtArrivalMeters: number;
   clearanceAtArrivalMeters: number;
+  arrivalGroundingProbabilityPercent: number; // Вероятность посадки на мель в момент ETA
   isSafePass: boolean;
   minDepthMeters: number;
   maxWindSpeedMs: number;
   provenance: 'assumption';
+}
+
+/**
+ * Стандартная функция нормального распределения Φ(z) (аппроксимация Абрамовица-Стегана с точностью < 1e-5)
+ */
+export function standardNormalCdf(z: number): number {
+  if (z < -6) return 0;
+  if (z > 6) return 1;
+
+  const a1 = 0.254829592;
+  const a2 = -0.284496736;
+  const a3 = 1.421413741;
+  const a4 = -1.453152027;
+  const a5 = 1.061405429;
+  const p = 0.3275911;
+
+  const sign = z < 0 ? -1 : 1;
+  const x = Math.abs(z) / Math.SQRT2;
+  const t = 1.0 / (1.0 + p * x);
+  const erf = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+
+  return 0.5 * (1.0 + sign * erf);
+}
+
+/**
+ * Расчет вероятности посадки на мель P(глубина < осадка)
+ * по нормальному распределению из 80% доверительного интервала P10-P90:
+ * σ = (P90 - P10) / 2.563, μ — медиана (глубина)
+ */
+export function calculateGroundingProbability(
+  p10Depth: number,
+  p90Depth: number,
+  draft: number,
+  medianDepth?: number
+): number {
+  const mu = medianDepth !== undefined ? medianDepth : (p10Depth + p90Depth) / 2;
+  const sigma = Math.max(0.01, (p90Depth - p10Depth) / 2.563);
+  const z = (draft - mu) / sigma;
+  const prob = standardNormalCdf(z);
+  return Math.max(0, Math.min(1, prob));
 }
 
 /**
@@ -129,6 +171,10 @@ export function generateHydroTimeline(
       ? Math.round(((h / 24) * Number(CASPIAN_ASSUMPTIONS.dailyDemurrageCostUsd.value)))
       : 0;
 
+    const probGrounding = Math.round(
+      calculateGroundingProbability(p10, p90, vesselDraftMeters, depth) * 100
+    );
+
     points.push({
       hour: h,
       label: `T+${h}ч`,
@@ -145,6 +191,7 @@ export function generateHydroTimeline(
       vesselLon,
       etaOffsetHours: isRisk ? Math.max(0, (riskEnd !== -1 ? riskEnd : 54) - h) : 0,
       demurrageUsd: demurrage,
+      groundingProbabilityPercent: probGrounding,
     });
   }
 
@@ -169,6 +216,13 @@ export function generateHydroTimeline(
   const isEtaInRiskWindow = hasRiskWindow && vesselEtaBarHour >= riskStart && vesselEtaBarHour <= riskEnd;
   const isSafePass = clearanceAtArrival >= 0;
 
+  const arrivalUncertainty = vesselEtaBarHour >= 15 && vesselEtaBarHour <= 50 ? 0.15 : 0.08;
+  const p10AtArrival = Number((depthAtArrival - arrivalUncertainty).toFixed(2));
+  const p90AtArrival = Number((depthAtArrival + arrivalUncertainty).toFixed(2));
+  const arrivalGroundingProbabilityPercent = Math.round(
+    calculateGroundingProbability(p10AtArrival, p90AtArrival, vesselDraftMeters, depthAtArrival) * 100
+  );
+
   return {
     timeline: points,
     riskWindow: {
@@ -183,6 +237,7 @@ export function generateHydroTimeline(
     isEtaInRiskWindow,
     depthAtArrivalMeters: depthAtArrival,
     clearanceAtArrivalMeters: clearanceAtArrival,
+    arrivalGroundingProbabilityPercent,
     isSafePass,
     minDepthMeters: minDepth,
     maxWindSpeedMs: maxWind,
@@ -243,35 +298,8 @@ export function getInterpolatedHydroPoint(
     vesselLon: lon,
     etaOffsetHours: isRisk ? Math.max(0, 54 - targetHour) : 0,
     demurrageUsd: isRisk ? Math.round((targetHour / 24) * 15000) : 0,
+    groundingProbabilityPercent: Math.round(
+      calculateGroundingProbability(p10, p90, vesselDraftMeters, depth) * 100
+    ),
   };
-}
-
-/**
- * Расчет вероятности риска посадки на мель P(глубина < осадка) по нормальному распределению
- * из доверительного интервала прогноза P10-P90:
- * σ = (P90 - P10) / 2.563
- * μ = глубина (медиана / матожидание прогноза)
- */
-export function calculateGroundingProbability(
-  vesselDraftMeters: number,
-  depthMeters: number,
-  p10Meters: number,
-  p90Meters: number
-): number {
-  if (depthMeters >= vesselDraftMeters + 0.50) return 0;
-  const p10 = Math.min(p10Meters, p90Meters);
-  const p90 = Math.max(p10Meters, p90Meters);
-  const span = p90 - p10;
-  const sigma = span > 0.001 ? span / 2.563 : 0.08;
-  const mu = depthMeters;
-  const z = (vesselDraftMeters - mu) / sigma;
-
-  // Точная аппроксимация интеграла вероятности стандартного нормального распределения CDF: Φ(z)
-  const t = 1 / (1 + 0.2316419 * Math.abs(z));
-  const d = 0.3989422804014327 * Math.exp((-z * z) / 2);
-  const poly = t * (0.31938153 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
-  const cdf = z >= 0 ? 1 - d * poly : d * poly;
-
-  const pct = Math.round(cdf * 100);
-  return Math.max(1, Math.min(99, pct));
 }

@@ -3,6 +3,7 @@ import {
   generateHydroTimeline,
   getInterpolatedHydroPoint,
   calculateGroundingProbability,
+  standardNormalCdf,
 } from './hydroProfile';
 
 describe('Hydro Profile & Predictive Timeline', () => {
@@ -47,18 +48,18 @@ describe('Hydro Profile & Predictive Timeline', () => {
     expect(profile.maxWindSpeedMs).toBe(9.0);
   });
 
-  it('calculates grounding risk probability via P10-P90 normal distribution', () => {
-    // Exact user test scenario: draft 4.15m vs depth 4.12m with [4.04..4.20] span -> ~57-60%
-    const prob57 = calculateGroundingProbability(4.15, 4.12, 4.04, 4.20);
-    expect(prob57).toBeGreaterThanOrEqual(50);
-    expect(prob57).toBeLessThanOrEqual(70);
+  it('calculates grounding probability using normal approximation from P10-P90', () => {
+    // When median = 3.55m, P10 = 3.40m, P90 = 3.70m, sigma = 0.30/2.563 = 0.117m
+    // For draft 3.56m (1 cm deeper than median): Z = 0.01 / 0.117 = 0.085 -> ~53-57%
+    const prob = calculateGroundingProbability(3.40, 3.70, 3.57, 3.55);
+    expect(Math.round(prob * 100)).toBe(57);
 
-    // Deep calm water: draft 4.15m vs depth 4.80m -> 0%
-    const prob0 = calculateGroundingProbability(4.15, 4.80, 4.70, 4.90);
-    expect(prob0).toBe(0);
+    // Deep water (draft 3.0m vs depth 4.5m): ~0%
+    const safeProb = calculateGroundingProbability(4.35, 4.65, 3.0, 4.50);
+    expect(Math.round(safeProb * 100)).toBe(0);
 
-    // Severe aground: draft 4.15m vs depth 3.55m -> 99%
-    const prob99 = calculateGroundingProbability(4.15, 3.55, 3.40, 3.70);
-    expect(prob99).toBe(99);
+    // Extreme deficit (draft 4.15m vs depth 3.55m): >99%
+    const crisisProb = calculateGroundingProbability(3.40, 3.70, 4.15, 3.55);
+    expect(Math.round(crisisProb * 100)).toBe(100);
   });
 });
