@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { generateHydroTimeline, getInterpolatedHydroPoint } from './hydroProfile';
+import {
+  generateHydroTimeline,
+  getInterpolatedHydroPoint,
+  calculateGroundingProbability,
+} from './hydroProfile';
 
 describe('Hydro Profile & Predictive Timeline', () => {
   it('generates 72-hour timeline with detected 39-hour risk window during sgon wind', () => {
@@ -41,5 +45,20 @@ describe('Hydro Profile & Predictive Timeline', () => {
     expect(profile.clearanceAtArrivalMeters).toBe(-0.02);
     expect(profile.isSafePass).toBe(false);
     expect(profile.maxWindSpeedMs).toBe(9.0);
+  });
+
+  it('calculates grounding risk probability via P10-P90 normal distribution', () => {
+    // Exact user test scenario: draft 4.15m vs depth 4.12m with [4.04..4.20] span -> ~57-60%
+    const prob57 = calculateGroundingProbability(4.15, 4.12, 4.04, 4.20);
+    expect(prob57).toBeGreaterThanOrEqual(50);
+    expect(prob57).toBeLessThanOrEqual(70);
+
+    // Deep calm water: draft 4.15m vs depth 4.80m -> 0%
+    const prob0 = calculateGroundingProbability(4.15, 4.80, 4.70, 4.90);
+    expect(prob0).toBe(0);
+
+    // Severe aground: draft 4.15m vs depth 3.55m -> 99%
+    const prob99 = calculateGroundingProbability(4.15, 3.55, 3.40, 3.70);
+    expect(prob99).toBe(99);
   });
 });

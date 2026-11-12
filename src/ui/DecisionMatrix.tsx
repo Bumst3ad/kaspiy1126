@@ -189,6 +189,9 @@ export const DecisionMatrix: React.FC<DecisionMatrixProps> = ({
                 <div>
                   <span className="text-text">Эмиссия:</span> {recommendedScenario.calculationDetails.co2Formula}
                 </div>
+                <div>
+                  <span className="text-text">Вероятность риска:</span> P(глубина &lt; осадка) = Φ((осадка − μ) / σ), σ = (P90 − P10) / 2.563
+                </div>
               </div>
             )}
 

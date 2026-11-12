@@ -75,7 +75,7 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
             {isSlotSynced
               ? 'Слот активен'
               : isCritical
-              ? `Мель ${actualClearance >= 0 ? '+' : ''}${actualClearance.toFixed(2)} м`
+              ? `Риск мели ${actualClearance >= 0 ? '+' : ''}${actualClearance.toFixed(2)} м`
               : isWarn
               ? `Контроль +${actualClearance.toFixed(2)} м`
               : `Запас +${actualClearance.toFixed(2)} м`}

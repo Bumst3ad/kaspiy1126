@@ -164,4 +164,13 @@ export const CASPIAN_ASSUMPTIONS: Record<string, OperationalAssumption> = {
     source: 'Интерфакс / Росморречфлот',
     note: 'Скопление флота река-море на внешнем рейде в ожидании дноуглубления',
   },
+  groundingRiskProbabilityModel: {
+    key: 'groundingRiskProbabilityModel',
+    label: 'Модель вероятности риска посадки на мель',
+    value: 'P(глубина < осадка) = Φ((осадка − μ) / σ), σ = (P90 − P10) / 2.563',
+    unit: 'формула',
+    provenance: 'assumption',
+    source: 'Нормальное распределение квантилей прогноза гидродинамической модели',
+    note: 'Вероятность риска мели рассчитывается по доверительному интервалу [P10..P90]',
+  },
 };

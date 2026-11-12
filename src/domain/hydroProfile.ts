@@ -245,3 +245,33 @@ export function getInterpolatedHydroPoint(
     demurrageUsd: isRisk ? Math.round((targetHour / 24) * 15000) : 0,
   };
 }
+
+/**
+ * Расчет вероятности риска посадки на мель P(глубина < осадка) по нормальному распределению
+ * из доверительного интервала прогноза P10-P90:
+ * σ = (P90 - P10) / 2.563
+ * μ = глубина (медиана / матожидание прогноза)
+ */
+export function calculateGroundingProbability(
+  vesselDraftMeters: number,
+  depthMeters: number,
+  p10Meters: number,
+  p90Meters: number
+): number {
+  if (depthMeters >= vesselDraftMeters + 0.50) return 0;
+  const p10 = Math.min(p10Meters, p90Meters);
+  const p90 = Math.max(p10Meters, p90Meters);
+  const span = p90 - p10;
+  const sigma = span > 0.001 ? span / 2.563 : 0.08;
+  const mu = depthMeters;
+  const z = (vesselDraftMeters - mu) / sigma;
+
+  // Точная аппроксимация интеграла вероятности стандартного нормального распределения CDF: Φ(z)
+  const t = 1 / (1 + 0.2316419 * Math.abs(z));
+  const d = 0.3989422804014327 * Math.exp((-z * z) / 2);
+  const poly = t * (0.31938153 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
+  const cdf = z >= 0 ? 1 - d * poly : d * poly;
+
+  const pct = Math.round(cdf * 100);
+  return Math.max(1, Math.min(99, pct));
+}
