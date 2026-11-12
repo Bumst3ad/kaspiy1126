@@ -1,4 +1,4 @@
-// MOCK & ASSUMPTIONS FILE — All unverified industry estimates stored here
+// MOCK & ASSUMPTIONS FILE — Все отраслевые параметры и допущения с источниками
 
 export interface OperationalAssumption {
   key: string;
@@ -6,25 +6,64 @@ export interface OperationalAssumption {
   value: number | string;
   unit: string;
   provenance: 'assumption';
+  source: string;
   note: string;
 }
 
 export const CASPIAN_ASSUMPTIONS: Record<string, OperationalAssumption> = {
-  vkmskNominalDepth: {
-    key: 'vkmskNominalDepth',
-    label: 'Проходная осадка ВКМСК',
+  vkmskTargetDepth: {
+    key: 'vkmskTargetDepth',
+    label: 'Целевая паспортная глубина ВКМСК',
     value: 4.5,
     unit: 'м',
     provenance: 'assumption',
-    note: 'Гарантированная осадка канала 4.2-4.5м при штатных гидроусловиях',
+    source: 'Проектная осадка Росморпорта / Минтранс РФ',
+    note: 'Паспортная глубина 4.50 м поддерживается дноуглублением',
   },
-  windTideDropMax: {
-    key: 'windTideDropMax',
-    label: 'Максимальный сгон уровня воды',
-    value: 0.65,
+  vkmskActualBaselineDepth: {
+    key: 'vkmskActualBaselineDepth',
+    label: 'Фактическая глубина на лимитирующих участках',
+    value: 4.4,
     unit: 'м',
     provenance: 'assumption',
-    note: 'Падение уровня воды 40-65 см при затяжном ветре СВ/В румбов >12 м/с',
+    source: 'Интерфакс (2024), Коммерсантъ (doc/7974243)',
+    note: 'В периоды заносимости глубина падает до 3.38-4.20 м на баре 151-155 км',
+  },
+  vkmskSgonDepth: {
+    key: 'vkmskSgonDepth',
+    label: 'Глубина канала при сгонном ветре',
+    value: 3.55,
+    unit: 'м',
+    provenance: 'assumption',
+    source: 'Прецеденты падения уровня до 3.38 м (Интерфакс)',
+    note: 'При СЗ ветре >12 м/с уровень на баре 151-155 км падает на 50-65 см',
+  },
+  vesselDraftShare: {
+    key: 'vesselDraftShare',
+    label: 'Доля судов с осадкой более 4.15 м',
+    value: 6,
+    unit: '%',
+    provenance: 'assumption',
+    source: 'Статистика каспийского торгового флота (Коммерсантъ)',
+    note: 'Суда с осадкой 4.15-4.25 м (Volgo-Max в полном грузу) составляют до 6% флота',
+  },
+  ukcSafetyThreshold: {
+    key: 'ukcSafetyThreshold',
+    label: 'Нормативный порог запаса под килем (UKC)',
+    value: 0.5,
+    unit: 'м',
+    provenance: 'assumption',
+    source: 'Регламент плавания по ВКМСК (допущение)',
+    note: 'Запас >=0.5м безопасный; 0.2-0.5м минимальный (желтый); <0.2м риск мели',
+  },
+  sgonWindDirection: {
+    key: 'sgonWindDirection',
+    label: 'Направление сгонных ветров',
+    value: 'СЗ, С (270°-360°)',
+    unit: 'румбы',
+    provenance: 'assumption',
+    source: 'ГУ МЧС по Астраханской области, КаспНИРХ',
+    note: 'Сгонные ветры северных и северо-западных румбов выдувают воду в море; южные (ЮВ) — нагонные',
   },
   dailyDemurrageCostUsd: {
     key: 'dailyDemurrageCostUsd',
@@ -32,7 +71,8 @@ export const CASPIAN_ASSUMPTIONS: Record<string, OperationalAssumption> = {
     value: 15000,
     unit: 'USD/сут',
     provenance: 'assumption',
-    note: 'Суточный демередж судна река-море при простое на внешнем рейде',
+    source: 'Ставки чартера судов река-море (МТК Север-Юг)',
+    note: 'Суточный демередж при ожидании швартовки на внешнем рейде',
   },
   berthSlotCancellationThresholdHours: {
     key: 'berthSlotCancellationThresholdHours',
@@ -40,22 +80,34 @@ export const CASPIAN_ASSUMPTIONS: Record<string, OperationalAssumption> = {
     value: 3,
     unit: 'ч',
     provenance: 'assumption',
-    note: 'Слот причала отдается следующему судну при опоздании свыше 3 часов',
+    source: 'Правила портового обслуживания Астрахань/Махачкала',
+    note: 'При опоздании свыше 3 ч слот отдается следующему судну',
   },
-  gaugeBreakPoint: {
-    key: 'gaugeBreakPoint',
-    label: 'Точка смены железнодорожной колеи 1520/1435',
-    value: 'ст. Самур / Астара / Серахс',
-    unit: 'узел',
+  lighteningOperationCostUsd: {
+    key: 'lighteningOperationCostUsd',
+    label: 'Стоимость частичной паузки на рейде',
+    value: 18500,
+    unit: 'USD',
     provenance: 'assumption',
-    note: 'Переход с колеи 1520 мм на 1435 мм требует перегрузки или смены тележек',
+    source: 'Тарифы рейдовой перевалки Росморпорта',
+    note: 'Вызов плавкрана и баржи-паузки для разгрузки 40-50 TEU на рейде',
   },
-  safetyUnderkeelMargin: {
-    key: 'safetyUnderkeelMargin',
-    label: 'Минимальный нормативный запас под килем',
-    value: 0.3,
-    unit: 'м',
+  makhachkalaRerouteSurchargeUsd: {
+    key: 'makhachkalaRerouteSurchargeUsd',
+    label: 'Доплата за ж/д плечо СКЖД до Махачкалы',
+    value: 1200,
+    unit: 'USD/состав',
     provenance: 'assumption',
-    note: 'Безопасный навигационный запас под килем по регламенту канала',
+    source: 'Прейскурант 10-01 РЖД (дополнительный пробег)',
+    note: 'Разница в ж/д тарифе при перенаправлении на ст. Махачкала-Порт',
+  },
+  anchorAuxDieselCo2TonsPerDay: {
+    key: 'anchorAuxDieselCo2TonsPerDay',
+    label: 'Выбросы вспомогательных ДГ на стоянке',
+    value: 1.8,
+    unit: 'т CO2/сут',
+    provenance: 'assumption',
+    source: 'IMO GHG Study (расход MGO вспомогательными дизель-генераторами)',
+    note: 'Судно на якоре сжигает около 0.6 т топлива в сутки для судовых нужд',
   },
 };

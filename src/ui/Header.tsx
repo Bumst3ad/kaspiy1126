@@ -4,6 +4,7 @@ import { Anchor, RefreshCw, AlertTriangle } from 'lucide-react';
 interface HeaderProps {
   vkmskDepthMeters: number;
   windSpeedMs: number;
+  windRumb: string;
   isCrisisActive: boolean;
   isSlotSynced: boolean;
   onToggleCrisis: () => void;
@@ -13,6 +14,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   vkmskDepthMeters,
   windSpeedMs,
+  windRumb,
   isCrisisActive,
   isSlotSynced,
   onToggleCrisis,
@@ -41,23 +43,28 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* ВКМСК Telemetry Badge */}
-      <div className="pointer-events-auto hidden md:flex items-center gap-4 glass-panel px-5 py-2.5 rounded-panel text-xs">
+      <div className="pointer-events-auto hidden md:flex items-center gap-3 glass-panel px-5 py-2.5 rounded-panel text-xs">
         <div className="flex items-center gap-2">
           <span
             className={`w-2 h-2 rounded-full ${
-              isCrisisActive && !isSlotSynced ? 'bg-critical' : 'bg-ok'
+              isSlotSynced ? 'bg-ok' : isCrisisActive ? 'bg-critical' : 'bg-warn'
             }`}
           />
           <span className="text-text-2">ВКМСК:</span>
           <span
             className={`font-mono font-semibold tabular-nums ${
-              isCrisisActive && !isSlotSynced ? 'text-critical' : 'text-text'
+              isSlotSynced ? 'text-ok' : isCrisisActive ? 'text-critical' : 'text-text'
             }`}
           >
-            {vkmskDepthMeters.toFixed(2)} м
+            {isSlotSynced ? 'Обход через Махачкалу' : `факт ${vkmskDepthMeters.toFixed(2)} м`}
           </span>
-          <span className="text-[11px] text-text-2 tabular-nums">
-            ({windSpeedMs.toFixed(1)} м/с {isCrisisActive ? 'СВ сгон' : 'ЮЗ'})
+          {!isSlotSynced && (
+            <span className="text-[11px] text-text-2 font-mono">
+              · цель 4.50 м
+            </span>
+          )}
+          <span className="text-[11px] text-text-2 font-mono tabular-nums">
+            ({windSpeedMs.toFixed(1)} м/с {windRumb})
           </span>
         </div>
       </div>
@@ -77,7 +84,7 @@ export const Header: React.FC<HeaderProps> = ({
             strokeWidth={1.5}
           />
           <span>
-            {isCrisisActive ? 'Сгон ВКМСК активен' : 'Симулировать сгон ВКМСК'}
+            {isCrisisActive ? 'Сгон ВКМСК (СЗ 14.5 м/с)' : 'Симулировать сгон (СЗ 14.5 м/с)'}
           </span>
         </button>
 

@@ -77,28 +77,28 @@ export const CargoCard: React.FC<CargoCardProps> = ({
         </div>
       </div>
 
-      {/* ESG Route Comparison Section */}
-      <div className="p-3.5 rounded-inner bg-surface-2 border border-hairline space-y-2">
+      {/* ESG Route Comparison Section: Unified with SyncSlotPanel */}
+      <div className="p-3.5 rounded-inner bg-surface-2 border border-hairline space-y-2.5">
         <div className="flex items-center justify-between text-xs">
           <span className="text-text-2 font-medium flex items-center gap-1.5">
             <Leaf className="w-3.5 h-3.5 text-ok" strokeWidth={1.5} />
             Углеродный след (GLEC / ISO 14083)
           </span>
           <span className="text-[10px] font-mono text-ok">
-            -{esg.savingsPercent}% к авто
+            -{esg.savingsPercent}% vs прямой автопоезд
           </span>
         </div>
 
         <div className="grid grid-cols-3 gap-2 text-center text-xs">
           <div className="bg-surface p-2 rounded-inner border border-hairline">
-            <span className="text-[10px] text-text-2 block mb-0.5">Море+Ж/Д</span>
+            <span className="text-[10px] text-text-2 block mb-0.5">Море+Ж/Д (МТК)</span>
             <span className="font-mono text-[11px] text-text font-semibold">
-              {(esg.syncSlotCo2Kg / 1000).toFixed(1)} т
+              {(esg.multimodalCo2Kg / 1000).toFixed(1)} т
             </span>
           </div>
 
           <div className="bg-surface p-2 rounded-inner border border-hairline">
-            <span className="text-[10px] text-text-2 block mb-0.5">Авто (фуры)</span>
+            <span className="text-[10px] text-text-2 block mb-0.5">Авто (2950 км)</span>
             <span className="font-mono text-[11px] text-text-2">
               {(esg.roadAlternativeCo2Kg / 1000).toFixed(1)} т
             </span>
@@ -107,10 +107,14 @@ export const CargoCard: React.FC<CargoCardProps> = ({
           <div className="bg-surface p-2 rounded-inner border border-hairline">
             <span className="text-[10px] text-text-2 block mb-0.5">Экономия</span>
             <span className="font-mono text-[11px] text-ok font-semibold">
-              -{esg.savingsVsRoadTons} т
+              +{esg.savingsVsRoadTons.toFixed(1)} т
             </span>
           </div>
         </div>
+
+        <p className="text-[10px] text-text-2 leading-relaxed">
+          Мультимодальный коридор (РЖД + Каспий) экономит {esg.savingsVsRoadTons.toFixed(1)} т CO₂ по сравнению с доставкой автопоездами.
+        </p>
       </div>
 
       {/* Ledger-Ready Pre-clearance Section */}

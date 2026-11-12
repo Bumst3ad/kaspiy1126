@@ -6,12 +6,14 @@ export interface UnderkeelResult {
   safetyMarginMeters: number;
   isAgroundRisk: boolean;
   status: 'safe' | 'warning' | 'critical';
+  statusLabel: string;
   provenance: 'real';
 }
 
 export interface ChannelDepthForecast {
   windSpeedMs: number;
   windDirectionDegrees: number;
+  windRumb: string;
   isSgonWind: boolean;
   depthDropMeters: number;
   predictedDepthMeters: number;
@@ -21,32 +23,40 @@ export interface ChannelDepthForecast {
 }
 
 /**
- * Прозрачная физическая эвристика глубины ВКМСК в зависимости от сгонного ветра
- * (Северо-восточный ветер 30-90° выдувает воду из устья Волги в открытое море)
+ * Прозрачная физическая эвристика глубины ВКМСК в зависимости от ветра.
+ * Согласно ГУ МЧС по АО и КаспНИРХ:
+ * - Сгонный сектор: СЗ и С румбы (270°-360° / 0°-20°). Выдувают воду из дельты Волги в открытый Каспий.
+ * - Нагонный сектор: ЮВ и Ю румбы (120°-180°). Повышают уровень воды в северо-западной части моря.
  */
 export function predictChannelDepth(
   windSpeedMs: number,
   windDirectionDegrees: number,
-  baseDepthMeters = 4.5
+  baseDepthMeters = Number(CASPIAN_ASSUMPTIONS.vkmskActualBaselineDepth?.value || 4.15)
 ): ChannelDepthForecast {
-  // Сгонный сектор: 20° - 100° (СВ / Восток)
-  const isSgonSector = windDirectionDegrees >= 20 && windDirectionDegrees <= 100;
+  // Сгонный сектор: 270° - 360° (СЗ) или 0° - 20° (Север)
+  const isSgonSector =
+    (windDirectionDegrees >= 270 && windDirectionDegrees <= 360) ||
+    (windDirectionDegrees >= 0 && windDirectionDegrees <= 20);
+
   const isSgonWind = isSgonSector && windSpeedMs > 8.0;
 
   let depthDrop = 0;
   if (isSgonWind) {
-    // При превышении 8 м/с уровень падает пропорционально квадрату скорости ветра
+    // При превышении 8 м/с уровень падает: до 0.60-0.65 м при СЗ шторме >14 м/с
     const excessWind = windSpeedMs - 8.0;
-    const maxDrop = Number(CASPIAN_ASSUMPTIONS.windTideDropMax.value);
-    depthDrop = Math.min(maxDrop, Number((excessWind * 0.08).toFixed(2)));
+    const maxDrop = 0.65;
+    depthDrop = Math.min(maxDrop, Number((excessWind * 0.09).toFixed(2)));
   }
 
   const predictedDepth = Number((baseDepthMeters - depthDrop).toFixed(2));
   const uncertainty = 0.08; // +/- 8 см интервал неопределенности
 
+  const windRumb = isSgonSector ? 'СЗ' : windDirectionDegrees >= 110 && windDirectionDegrees <= 160 ? 'ЮВ' : 'Штиль';
+
   return {
     windSpeedMs,
     windDirectionDegrees,
+    windRumb,
     isSgonWind,
     depthDropMeters: depthDrop,
     predictedDepthMeters: predictedDepth,
@@ -54,32 +64,39 @@ export function predictChannelDepth(
       Number((predictedDepth - uncertainty).toFixed(2)),
       Number((predictedDepth + uncertainty).toFixed(2)),
     ],
-    heuristicFormula: 'depth = baseDepth - clamp(0, 0.65, (wind - 8) * 0.08)',
+    heuristicFormula: 'depth = baseDepth - clamp(0, 0.65, (windSpeed - 8.0) * 0.09)',
     provenance: 'assumption',
   };
 }
 
 /**
- * Расчет запаса под килем (UKC)
- * Запас под килем = глубина − осадка − запас безопасности
+ * Расчет запаса под килем (UKC) с нормативным порогом безопасности 0.50 м (допущение).
+ * Запас под килем = глубина − осадка.
+ * Пороги:
+ * - >= 0.50 м: 'safe' (зеленый) — безопасный запас
+ * - 0.00 .. 0.49 м: 'warning' (желтый) — минимальный запас, требуется контроль
+ * - < 0.00 м: 'critical' (красный) — посадка на мель
  */
 export function calculateUnderkeelClearance(
   channelDepthMeters: number,
   vesselDraftMeters: number,
-  safetyMarginMeters = Number(CASPIAN_ASSUMPTIONS.safetyUnderkeelMargin.value)
+  safetyMarginMeters = Number(CASPIAN_ASSUMPTIONS.ukcSafetyThreshold?.value || 0.5)
 ): UnderkeelResult {
   const actualClearance = Number((channelDepthMeters - vesselDraftMeters).toFixed(2));
   const netSafetyClearance = Number((actualClearance - safetyMarginMeters).toFixed(2));
 
   let status: 'safe' | 'warning' | 'critical' = 'safe';
+  let statusLabel = 'Запас в норме (>=0.5 м)';
   let isAgroundRisk = false;
 
   if (actualClearance <= 0) {
     status = 'critical';
+    statusLabel = 'Риск посадки на мель';
     isAgroundRisk = true;
-  } else if (netSafetyClearance < 0) {
+  } else if (actualClearance < safetyMarginMeters) {
     status = 'warning';
-    isAgroundRisk = true;
+    statusLabel = 'Минимальный запас <0.5 м (допущение)';
+    isAgroundRisk = false;
   }
 
   return {
@@ -88,6 +105,7 @@ export function calculateUnderkeelClearance(
     safetyMarginMeters,
     isAgroundRisk,
     status,
+    statusLabel,
     provenance: 'real',
   };
 }

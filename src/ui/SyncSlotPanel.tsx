@@ -6,11 +6,13 @@ import {
   AlertTriangle,
   Check,
   Zap,
-  ArrowRight
+  ArrowRight,
+  Info
 } from 'lucide-react';
 import { VesselData } from '../data/types';
 import { calculateUnderkeelClearance } from '../domain/underkeelClearance';
 import { evaluateTripartiteSyncSlot, TripartiteSyncPlan } from '../domain/syncSlot';
+import { compareRouteEsg } from '../domain/esgCalculator';
 
 interface SyncSlotPanelProps {
   vessel: VesselData;
@@ -31,7 +33,10 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
   const [syncStep, setSyncStep] = useState(0);
 
   // Pure domain calculations
-  const ukc = calculateUnderkeelClearance(vkmskDepthMeters, vessel.draftMeters);
+  const effectiveDepth = isSlotSynced ? 6.8 : vkmskDepthMeters;
+  const ukc = calculateUnderkeelClearance(effectiveDepth, vessel.draftMeters);
+  const esg = compareRouteEsg(vessel.cargoTonnage);
+
   const syncPlan: TripartiteSyncPlan = evaluateTripartiteSyncSlot(
     isCrisisActive && !isSlotSynced,
     vessel.status === 'risk' ? 72.0 : 0.0
@@ -66,12 +71,12 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
               <span className="font-semibold text-sm tracking-tight text-text">
                 {vessel.name}
               </span>
-              <span className="text-[10px] font-mono text-text-2 bg-surface-2 px-1.5 py-0.5 rounded">
+              <span className="text-[10px] font-mono text-text-2 bg-surface-2 px-1.5 py-0.5 rounded border border-hairline">
                 {vessel.flag}
               </span>
             </div>
             <p className="text-[11px] text-text-2 font-mono mt-0.5">
-              IMO {vessel.imo} · {vessel.currentLoadTeu}/{vessel.capacityTeu} TEU · {vessel.cargoTonnage} т
+              IMO {vessel.imo} · {vessel.currentLoadTeu}/{vessel.capacityTeu} TEU · Осадка {vessel.draftMeters.toFixed(2)} м (Volgo-Max, до 6% флота)
             </p>
           </div>
         </div>
@@ -80,11 +85,15 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
         <div className="px-2.5 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 border border-hairline bg-surface-2">
           <span
             className={`w-1.5 h-1.5 rounded-full ${
-              isSlotSynced ? 'bg-ok' : isCrisisActive ? 'bg-critical' : 'bg-ok'
+              isSlotSynced ? 'bg-ok' : isCrisisActive ? 'bg-critical' : 'bg-warn'
             }`}
           />
-          <span className="text-[11px]">
-            {isSlotSynced ? 'Слот активен' : isCrisisActive ? 'Риск мели' : 'В графике'}
+          <span className="text-[11px] font-mono">
+            {isSlotSynced
+              ? 'Слот активен (+2.65 м)'
+              : isCrisisActive
+              ? 'Риск мели (-0.60 м)'
+              : 'Запас +0.25 м (порог 0.5 м)'}
           </span>
         </div>
       </div>
@@ -94,6 +103,8 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
         className={`p-3.5 rounded-inner border transition-all ${
           isCrisisActive && !isSlotSynced
             ? 'bg-critical-muted border-critical'
+            : isSlotSynced
+            ? 'bg-ok-muted border-ok'
             : 'bg-surface-2 border-hairline'
         }`}
       >
@@ -102,7 +113,11 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
             <Anchor className="w-3.5 h-3.5 text-accent" strokeWidth={1.5} />
             Запас под килем (UKC)
           </span>
-          <span className="text-[11px] font-mono tabular-nums">
+          <span
+            className={`text-[11px] font-mono font-semibold tabular-nums ${
+              isSlotSynced ? 'text-ok' : isCrisisActive ? 'text-critical' : 'text-warn'
+            }`}
+          >
             {ukc.actualClearanceMeters >= 0 ? '+' : ''}
             {ukc.actualClearanceMeters.toFixed(2)} м
           </span>
@@ -110,35 +125,47 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
 
         <div className="grid grid-cols-2 gap-2.5 text-xs">
           <div className="bg-surface p-2.5 rounded-inner border border-hairline">
-            <span className="text-text-2 block text-[10px] mb-0.5">Осадка судна</span>
+            <span className="text-text-2 block text-[10px] mb-0.5">Осадка судна (факт)</span>
             <span className="text-sm font-mono font-semibold tabular-nums text-text">
               {vessel.draftMeters.toFixed(2)} м
             </span>
           </div>
 
           <div className="bg-surface p-2.5 rounded-inner border border-hairline">
-            <span className="text-text-2 block text-[10px] mb-0.5">Глубина канала</span>
+            <span className="text-text-2 block text-[10px] mb-0.5">
+              {isSlotSynced ? 'Глубина причала (Махачкала)' : 'Глубина бара (151–155 км)'}
+            </span>
             <span
               className={`text-sm font-mono font-semibold tabular-nums ${
-                isCrisisActive && !isSlotSynced ? 'text-critical' : 'text-text'
+                isCrisisActive && !isSlotSynced ? 'text-critical' : isSlotSynced ? 'text-ok' : 'text-text'
               }`}
             >
-              {vkmskDepthMeters.toFixed(2)} м
+              {effectiveDepth.toFixed(2)} м {!isSlotSynced && <span className="text-[10px] text-text-2 font-normal">(цель 4.50)</span>}
             </span>
           </div>
         </div>
+
+        {/* Informational threshold label */}
+        {!isCrisisActive && !isSlotSynced && (
+          <div className="mt-2.5 p-2 rounded bg-surface border border-hairline text-[11px] text-text-2 flex items-start gap-1.5">
+            <Info className="w-3.5 h-3.5 text-warn shrink-0 mt-0.5" strokeWidth={1.5} />
+            <span>
+              Порог безопасного запаса: 0.50 м (допущение). Текущий клиренс 0.25 м находится в зоне повышенного внимания.
+            </span>
+          </div>
+        )}
 
         {isCrisisActive && !isSlotSynced && (
           <div className="mt-2.5 p-2 rounded bg-surface border border-critical text-[11px] text-critical flex items-start gap-2">
             <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" strokeWidth={1.5} />
             <span>
-              Осадка {vessel.draftMeters} м превышает глубину {vkmskDepthMeters} м. Риск посадки на мель в ВКМСК.
+              Осадка {vessel.draftMeters.toFixed(2)} м превышает глубину бара {vkmskDepthMeters.toFixed(2)} м (дефицит 0.60 м). Риск посадки на мель в ВКМСК.
             </span>
           </div>
         )}
       </div>
 
-      {/* Metrics Row */}
+      {/* Metrics Row: Unified ESG and Delay */}
       <div className="grid grid-cols-3 gap-2 text-center text-xs">
         <div className="p-2.5 rounded-inner bg-surface-2 border border-hairline">
           <span className="text-[10px] text-text-2 block mb-0.5">Задержка</span>
@@ -163,9 +190,9 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
         </div>
 
         <div className="p-2.5 rounded-inner bg-surface-2 border border-hairline">
-          <span className="text-[10px] text-text-2 block mb-0.5">CO2 экономия</span>
+          <span className="text-[10px] text-text-2 block mb-0.5">CO2 экономия к авто</span>
           <span className="font-mono font-semibold tabular-nums text-ok">
-            {isSlotSynced ? '18.4 т' : '1.2 т'}
+            +{isSlotSynced ? (esg.savingsVsRoadTons - 5.4).toFixed(1) : esg.savingsVsRoadTons.toFixed(1)} т
           </span>
         </div>
       </div>
@@ -197,7 +224,7 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
                 2. Порт: причал №{syncPlan.targetBerthNumber} зарезервирован
               </div>
               <div className={syncStep >= 3 ? 'text-ok' : 'text-text-2'}>
-                3. Судно: курс обновлен
+                3. Судно: курс обновлен в обход обмелевшего бара ВКМСК
               </div>
             </div>
           )}
@@ -221,9 +248,9 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
             <span>Трёхсторонний слот подтверждён:</span>
           </div>
           <div className="text-[11px] text-text-2 pl-6 space-y-0.5 font-mono">
-            <div>РЖД: нитка графика перенаправлена на ст. Махачкала-Порт</div>
-            <div>Порт: причал №4 (глубина 6.8 м) выделен под разгрузку</div>
-            <div>Судно: курс обновлен в обход ВКМСК</div>
+            <div>РЖД: нитка графика перенаправлена на СКЖД (ст. Махачкала-Порт)</div>
+            <div>Порт: причал №4 (глубина 6.80 м) выделен под разгрузку</div>
+            <div>Судно: курс обновлен в обход обмелевшего бара ВКМСК</div>
           </div>
         </div>
       )}
