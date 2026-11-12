@@ -17,7 +17,7 @@ export const CASPIAN_ASSUMPTIONS: Record<string, OperationalAssumption> = {
     value: 4.5,
     unit: 'м',
     provenance: 'assumption',
-    source: 'Проектная осадка оператора канала / Минтранс РФ',
+    source: 'Проектная осадка / оператор канала / Минтранс РФ',
     note: 'Паспортная глубина 4.50 м поддерживается дноуглублением',
   },
   vkmskActualBaselineDepth: {
@@ -89,7 +89,7 @@ export const CASPIAN_ASSUMPTIONS: Record<string, OperationalAssumption> = {
     value: 18500,
     unit: 'USD',
     provenance: 'assumption',
-    source: 'Тарифы рейдовой перевалки оператора канала',
+    source: 'Тарифы рейдовой перевалки (оператор канала)',
     note: 'Вызов плавкрана и баржи-паузки для разгрузки 40-50 TEU на рейде',
   },
   makhachkalaRerouteSurchargeUsd: {
@@ -99,7 +99,7 @@ export const CASPIAN_ASSUMPTIONS: Record<string, OperationalAssumption> = {
     unit: 'USD/состав',
     provenance: 'assumption',
     source: 'Прейскурант 10-01 РЖД (дополнительный пробег)',
-    note: 'Разница в ж/д тарифе при перенаправлении на ст. Махачкала-Порт (норматив цельного поезда)',
+    note: 'Разница в ж/д тарифе при перенаправлении на ст. Махачкала-Порт',
   },
   hsCodeClassification: {
     key: 'hsCodeClassification',
@@ -143,7 +143,7 @@ export const CASPIAN_ASSUMPTIONS: Record<string, OperationalAssumption> = {
     value: '3.38 м',
     unit: 'м',
     provenance: 'real',
-    source: 'Минтранс РФ, Интерфакс',
+    source: 'Минтранс РФ, Интерфакс, открытые публикации',
     note: 'Закрытие 151–155 км 10–12 и с 19 июня; глубина ≈3.38 м, в очереди скопилось ≈50 судов',
   },
   june2026ClosureDates: {
@@ -152,7 +152,7 @@ export const CASPIAN_ASSUMPTIONS: Record<string, OperationalAssumption> = {
     value: '10–12 и с 19 июня 2026',
     unit: 'период',
     provenance: 'real',
-    source: 'Распоряжения оператора канала / Минтранс РФ',
+    source: 'Распоряжения: оператор канала / Минтранс РФ',
     note: 'Временный запрет движения судов с осадкой более 3.20-3.35 м',
   },
   june2026VesselQueue: {
@@ -164,13 +164,22 @@ export const CASPIAN_ASSUMPTIONS: Record<string, OperationalAssumption> = {
     source: 'Интерфакс / Росморречфлот',
     note: 'Скопление флота река-море на внешнем рейде в ожидании дноуглубления',
   },
-  groundingRiskProbabilityModel: {
-    key: 'groundingRiskProbabilityModel',
-    label: 'Модель вероятности риска посадки на мель',
-    value: 'P(глубина < осадка) = Φ((осадка − μ) / σ), σ = (P90 − P10) / 2.563',
-    unit: 'формула',
+  trainIntegrityNorm: {
+    key: 'trainIntegrityNorm',
+    label: 'Норматив формирования цельного контейнерного поезда РЖД',
+    value: '71 условный вагон (142 TEU)',
+    unit: 'вагоны',
     provenance: 'assumption',
-    source: 'Нормальное распределение квантилей прогноза гидродинамической модели',
-    note: 'Вероятность риска мели рассчитывается по доверительному интервалу [P10..P90]',
+    source: 'Технологический регламент формирования контейнерных поездов РЖД',
+    note: 'Дробление судовой партии нарушает норматив цельного поезда и влечет срыв выделенной нитки RZD-Slot',
+  },
+  groundingProbabilityModel: {
+    key: 'groundingProbabilityModel',
+    label: 'Нормальная модель вероятности обмеления',
+    value: 'P(глубина < осадка) = Φ((осадка - μ) / σ), где σ = (P90 - P10) / 2.563',
+    unit: 'модель',
+    provenance: 'assumption',
+    source: 'Теория гидротехнической надежности (допущение)',
+    note: 'P10 и P90 формируют 80% доверительный интервал гидродинамического ансамбля',
   },
 };

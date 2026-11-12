@@ -16,6 +16,7 @@ export interface ScenarioCalculationDetails {
   timeFormula: string;
   costFormula: string;
   co2Formula: string;
+  groundingProbabilityFormula?: string;
   assumptions: string[];
 }
 
@@ -83,6 +84,7 @@ export function evaluateDecisionScenarios(
         timeFormula: 'ΔT = 0 ч (судно следует без отклонения от расписания)',
         costFormula: 'Δ$ = $0 (штрафы и демередж отсутствуют)',
         co2Formula: 'ΔCO2 = 0 т (плановый углеродный след рейса)',
+        groundingProbabilityFormula: 'P(глубина < осадка) = Φ((осадка - μ) / σ), где σ = (P90 - P10) / 2.563',
         assumptions: [
           'Типичная осадка судов река-море на Каспии: 3.20-3.60 м',
           'При запасе >=0 м судоходство не прерывается; при <0.50 м требуется проводка под контролем',
@@ -147,6 +149,7 @@ export function evaluateDecisionScenarios(
       timeFormula: `ΔT = max(0, ${recoveryHour}ч - ${vesselEtaBarHour}ч) + 2ч проводки = ${waitHours} ч`,
       costFormula: `Δ$ = ${waitHours}ч * ($15 000 / 24 судно) + $${railcarsDemurrage} (штраф за простой вагонов) = +$${totalWaitCost.toLocaleString()}`,
       co2Formula: `ΔCO2 = ${waitHours}ч * 0.035 т/ч расхода MGO судовыми ДГ * 3.206 = +${waitCo2} т`,
+      groundingProbabilityFormula: 'P(глубина < осадка) = Φ((осадка - μ) / σ), где σ = (P90 - P10) / 2.563',
       assumptions: [
         `Технологический порог ожидания слота: ${SLOT_CANCELLATION_THRESHOLD} ч (допущение)`,
         'Ставка чартера судна: $15 000/сут ($625/ч)',
@@ -196,6 +199,7 @@ export function evaluateDecisionScenarios(
       timeFormula: `ΔT = ΔT_море (11.3ч - 12.7ч = -1.4ч) + ΔT_ж/д (+450км / 45км/ч = +10.0ч) + стыковка (+1.5ч) = +${deltaHoursMakhachkala} ч`,
       costFormula: `Δ$ = Доп. тариф ж/д плеча 450 км ($20 600 / $95 за TEU) - сборы ВКМСК ($4 200) = +$${deltaCostMakhachkala.toLocaleString()}`,
       co2Formula: `ΔCO2 = Море+Ж/Д Махачкала (${makhachkalaEmissions.multimodalCo2Tons} т) - Базовый (${baselineEmissions.multimodalCo2Tons} т) = +${deltaCo2Makhachkala} т (экономия vs фур: ${makhachkalaEmissions.savingsCo2Tons} т)`,
+      groundingProbabilityFormula: 'P(глубина < осадка) = Φ((осадка - μ) / σ), где σ = (P90 - P10) / 2.563',
       assumptions: [
         'Морской переход: 213 км по глубоководному морю без захода в канал',
         'Дополнительное ж/д плечо РЖД до Москвы: +450 км (Прейскурант 10-01: $0.0105/т·км)',
@@ -225,7 +229,7 @@ export function evaluateDecisionScenarios(
         ? `Осадка снизится до ${targetReducedDraft.toFixed(2)} м (проходит глубину ${depthAtArrival.toFixed(2)} м)`
         : `ОТКАЗ: Осадка ${targetReducedDraft.toFixed(2)} м превышает экстремальное обмеление ${depthAtArrival.toFixed(2)} м`,
       berthAndCrane: false,
-      berthAndCraneDetail: 'ОТКАЗ: Плавкран KR-Float-03 оператора канала занят в порту Оля (задержка >24 ч)',
+      berthAndCraneDetail: 'ОТКАЗ: Плавкран KR-Float-03 (оператор канала) занят в порту Оля (задержка >24 ч)',
       rzdSlot: false,
       rzdSlotDetail: 'ОТКАЗ: Дробление партии нарушает норматив цельного поезда RZD-Slot-A04',
       locomotive: true,
@@ -236,8 +240,9 @@ export function evaluateDecisionScenarios(
     isRecommended: false,
     calculationDetails: {
       timeFormula: `ΔT = Переход плавкрана из порта Оля (12ч) + Перевалка 48 TEU (8ч) + Документы (2ч) = +${lighteningHours} ч`,
-      costFormula: `Δ$ = Аренда плавкрана KR-Float-03 + баржа-паузка оператора канала = +$${lighteningCost.toLocaleString()}`,
+      costFormula: `Δ$ = Аренда плавкрана KR-Float-03 + баржа-паузка (оператор канала) = +$${lighteningCost.toLocaleString()}`,
       co2Formula: `ΔCO2 = 0.65 т бункерного топлива плавкрана * 3.206 = +${lighteningCo2} т`,
+      groundingProbabilityFormula: 'P(глубина < осадка) = Φ((осадка - μ) / σ), где σ = (P90 - P10) / 2.563',
       assumptions: [
         'Разгрузка 48 TEU (960 т) снижает осадку с 4.15 м до 3.50 м',
         'Аренда плавкрана: ~$18 500 за смену',
