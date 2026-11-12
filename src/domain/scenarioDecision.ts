@@ -225,7 +225,7 @@ export function evaluateDecisionScenarios(
         ? `Осадка снизится до ${targetReducedDraft.toFixed(2)} м (проходит глубину ${depthAtArrival.toFixed(2)} м)`
         : `ОТКАЗ: Осадка ${targetReducedDraft.toFixed(2)} м превышает экстремальное обмеление ${depthAtArrival.toFixed(2)} м`,
       berthAndCrane: false,
-      berthAndCraneDetail: 'ОТКАЗ: Плавкран KR-Float-03 Росморпорта занят в порту Оля (задержка >24 ч)',
+      berthAndCraneDetail: 'ОТКАЗ: Плавкран KR-Float-03 оператора канала занят в порту Оля (задержка >24 ч)',
       rzdSlot: false,
       rzdSlotDetail: 'ОТКАЗ: Дробление партии нарушает норматив цельного поезда RZD-Slot-A04',
       locomotive: true,
@@ -236,7 +236,7 @@ export function evaluateDecisionScenarios(
     isRecommended: false,
     calculationDetails: {
       timeFormula: `ΔT = Переход плавкрана из порта Оля (12ч) + Перевалка 48 TEU (8ч) + Документы (2ч) = +${lighteningHours} ч`,
-      costFormula: `Δ$ = Аренда плавкрана KR-Float-03 + баржа-паузка Росморпорта = +$${lighteningCost.toLocaleString()}`,
+      costFormula: `Δ$ = Аренда плавкрана KR-Float-03 + баржа-паузка оператора канала = +$${lighteningCost.toLocaleString()}`,
       co2Formula: `ΔCO2 = 0.65 т бункерного топлива плавкрана * 3.206 = +${lighteningCo2} т`,
       assumptions: [
         'Разгрузка 48 TEU (960 т) снижает осадку с 4.15 м до 3.50 м',
