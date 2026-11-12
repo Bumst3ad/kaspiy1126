@@ -88,8 +88,6 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
         className={`p-3 rounded-inner border transition-all ${
           isSlotSynced
             ? 'bg-ok-muted border-ok'
-            : isCritical
-            ? 'bg-critical-muted border-critical'
             : isWarn
             ? 'bg-warn-muted border-warn'
             : 'bg-surface-2 border-hairline'

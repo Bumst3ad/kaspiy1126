@@ -275,8 +275,9 @@ export const DecisionMatrix: React.FC<DecisionMatrixProps> = ({
 
                     <div className="flex items-center gap-2">
                       {scenario.rejectionReason ? (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-critical-muted border border-critical text-critical font-medium">
-                          {scenario.id === 'wait' ? 'Риск: срыв слота >6 ч' : 'Риск: нет плавкрана'}
+                        <span className="px-2 py-0.5 rounded text-[10px] bg-surface border border-hairline text-text-2 font-medium flex items-center gap-1 shrink-0">
+                          <AlertTriangle className="w-3 h-3 text-critical shrink-0" strokeWidth={1.5} />
+                          <span>{scenario.id === 'wait' ? 'Срыв слота >6 ч' : 'Нет плавкрана'}</span>
                         </span>
                       ) : (
                         <span className="px-1.5 py-0.5 rounded text-[10px] bg-surface-2 border border-hairline text-text-2">
@@ -313,8 +314,9 @@ export const DecisionMatrix: React.FC<DecisionMatrixProps> = ({
                         {scenario.subtitle}
                       </p>
                       {scenario.rejectionReason && (
-                        <div className="p-1.5 rounded bg-surface border border-critical text-critical text-[11px]">
-                          <strong>Фактор риска:</strong> {scenario.rejectionReason}
+                        <div className="p-2 rounded bg-surface border border-hairline text-text-2 text-[11px] flex items-center gap-2">
+                          <AlertTriangle className="w-3.5 h-3.5 text-critical shrink-0" strokeWidth={1.5} />
+                          <span><strong>Фактор отказа:</strong> {scenario.rejectionReason}</span>
                         </div>
                       )}
                       <div className="space-y-1 bg-surface p-2 rounded text-[11px] text-text-2">
