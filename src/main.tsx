@@ -1,7 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { App } from './ui/App';
+import 'leaflet/dist/leaflet.css';
 import './styles/tokens.css';
+import { App } from './ui/App';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
