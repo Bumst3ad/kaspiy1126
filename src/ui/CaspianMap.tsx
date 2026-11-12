@@ -36,21 +36,14 @@ const VKMSK_SECTORS = {
   ] as L.LatLngExpression[],
 };
 
-// Границы канала ВКМСК + Махачкала
-function getCanalBounds(): L.LatLngBounds {
-  const points: L.LatLngTuple[] = [
-    [42.85, 47.00], // Махачкала (юг)
-    [45.7833, 47.5500], // Порт Оля
-    [46.45, 48.25], // Астрахань (север)
-    [44.85, 47.85], // Канал ВКМСК
-  ];
-  const bounds = L.latLngBounds(points);
-  console.warn('[CaspianMap fitBounds "canal"] points:', points, 'bounds:', bounds.toBBoxString());
-  return bounds;
-}
+// Границы режима «Канал»: охватывает весь канал ВКМСК, порт Оля и глубоководную Махачкалу
+const CANAL_BOUNDS = L.latLngBounds([
+  [42.85, 47.10], // Порт Махачкала (южный опорный хаб)
+  [46.65, 48.40], // Порт Астрахань (северный вход)
+]);
 
-function getCaspianActiveBounds(isSlotSynced: boolean, vessel: VesselData): L.LatLngBounds {
-  const points: L.LatLngTuple[] = [
+function getCaspianActiveBounds(isSlotSynced: boolean, vessel: VesselData) {
+  const points: L.LatLngExpression[] = [
     [46.3497, 48.0326], // Астрахань
     [45.7833, 47.5500], // Оля
     [42.9833, 47.5000], // Махачкала
@@ -58,9 +51,7 @@ function getCaspianActiveBounds(isSlotSynced: boolean, vessel: VesselData): L.La
     [36.8522, 53.3761], // Амирабад
     isSlotSynced ? [43.60, 47.65] : [vessel.lat, vessel.lon],
   ];
-  const bounds = L.latLngBounds(points);
-  console.warn('[CaspianMap fitBounds "caspian"] points:', points, 'bounds:', bounds.toBBoxString());
-  return bounds;
+  return L.latLngBounds(points);
 }
 
 export const CaspianMap: React.FC<CaspianMapProps> = ({
@@ -94,7 +85,9 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
     });
 
     map.invalidateSize();
-    map.fitBounds(getCanalBounds(), {
+    console.warn('[CaspianMap] Initial CANAL_BOUNDS:', CANAL_BOUNDS.toBBoxString());
+
+    map.fitBounds(CANAL_BOUNDS, {
       paddingTopLeft: [40, 80],
       paddingBottomRight: [40, 80],
     });
@@ -133,16 +126,20 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
     if (!map) return;
 
     map.invalidateSize();
+
     if (scope === 'canal') {
-      map.fitBounds(getCanalBounds(), {
+      console.warn('[CaspianMap] Scope "canal" bounds:', CANAL_BOUNDS.toBBoxString());
+      map.fitBounds(CANAL_BOUNDS, {
         paddingTopLeft: [40, 80],
         paddingBottomRight: [40, 80],
         duration: 0.8,
       });
     } else {
-      map.fitBounds(getCaspianActiveBounds(isSlotSynced, vessel), {
-        paddingTopLeft: [50, 60],
-        paddingBottomRight: [50, 60],
+      const caspianBounds = getCaspianActiveBounds(isSlotSynced, vessel);
+      console.warn('[CaspianMap] Scope "caspian" bounds:', caspianBounds.toBBoxString());
+      map.fitBounds(caspianBounds, {
+        paddingTopLeft: [60, 70],
+        paddingBottomRight: [60, 60],
         maxZoom: 7,
         duration: 0.8,
       });
@@ -189,7 +186,7 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
     });
 
     barLine.bindTooltip(
-      `<div class="max-w-[220px] text-[11px] leading-snug">
+      `<div class="max-w-[240px] text-[12px] leading-snug">
         <div class="font-semibold ${isCrisisActive ? 'text-critical' : 'text-warn'}">
           Лимитирующий бар (151–155 км)
         </div>
@@ -197,11 +194,11 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
           Глубина: <span class="font-mono font-bold tabular-nums">${vkmskDepthMeters.toFixed(2)} м</span>
           · Осадка: <span class="font-mono tabular-nums">${vessel.draftMeters.toFixed(2)} м</span>
         </div>
-        <div class="text-text-2 text-[10px] mt-0.5">
+        <div class="text-text-2 text-[11px] mt-0.5">
           ${isCrisisActive ? 'Сгон воды! Риск мели' : 'Проход под контролем (допущение)'}
         </div>
       </div>`,
-      { permanent: false, direction: 'left', className: 'glass-panel', offset: [-15, 0] }
+      { permanent: isCrisisActive, direction: 'left', className: 'glass-panel', offset: [-12, 0] }
     );
     canalGroup.addLayer(barLine);
 
@@ -213,11 +210,11 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
     });
     canalGroup.addLayer(lowerCanal);
 
-    // Километровые пикеты ВКМСК и внешний рейд (разнесены, без дублирования портов)
+    // Километровые пикеты ВКМСК и внешний рейд (без дублирования Астрахани и Оля)
     const milestones = [
-      { pos: [45.2700, 47.7250] as L.LatLngExpression, label: '151–155 км · Бар', anchor: [120, 10] },
-      { pos: [44.8900, 47.7500] as L.LatLngExpression, label: '188 км · Вход в канал', anchor: [0, 10] },
-      { pos: [44.6800, 48.0200] as L.LatLngExpression, label: '188+ км · Внешний рейд (9.5 м)', anchor: [5, 22] },
+      { pos: [45.2700, 47.7250] as L.LatLngExpression, label: '151–155 км · Бар', anchor: [55, 10] },
+      { pos: [44.8900, 47.7500] as L.LatLngExpression, label: '188 км · Вход в канал', anchor: [110, 10] },
+      { pos: [44.6800, 48.0200] as L.LatLngExpression, label: '188+ км · Внешний рейд (9.5 м)', anchor: [5, 10] },
     ];
 
     milestones.forEach((m) => {
@@ -275,7 +272,7 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
       routeGroup.addLayer(syncLine);
     }
 
-    // 3. Порты: подписи только у релевантных портов, остальные — точка с аккуратной подписью
+    // 3. Порты: подписи только у релевантных портов, остальные — нейтральная точка с подписью по hover
     ports.forEach((port) => {
       const isAstrakhan = port.id === 'RU_AST';
       const isMakhachkala = port.id === 'RU_MCX';
@@ -284,10 +281,9 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
       let dotColor = 'var(--ok)';
       let badge = '';
 
-      // Только один бейдж «Сгон» на карте (на Астрахани/ВКМСК)
       if (isAstrakhan && isCrisisActive) {
         dotColor = 'var(--critical)';
-        badge = 'Сгон';
+        badge = 'Сгон'; // Единственный бейдж «Сгон» на портах (только Астрахань/ВКМСК)
       } else if (isMakhachkala && isSlotSynced) {
         dotColor = 'var(--ok)';
         badge = 'Слот';
@@ -296,30 +292,27 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
       }
 
       if (isRelevant) {
-        // Релевантные порты (Астрахань, Оля, Махачкала, Энзели, Амирабад) с разнесенными якорями
-        let anchor: [number, number] = [55, 13];
-        if (port.id === 'RU_AST') anchor = [55, 26]; // сдвиг вверх от устья
-        else if (port.id === 'RU_OLY') anchor = [55, -6]; // сдвиг вниз
-        else if (port.id === 'RU_MCX') anchor = [115, 13]; // сдвиг влево на побережье
-        else if (port.id === 'IR_ANZ') anchor = [55, 26]; // сдвиг вниз
-        else if (port.id === 'IR_AMI') anchor = [0, 13]; // сдвиг вправо
+        // Релевантные порты (Астрахань, Оля, Махачкала, Энзели, Амирабад) с постоянной плашкой
+        // Smart-offset для исключения взаимных наложений
+        const isLeftAnchor = port.id === 'RU_OLY' || port.id === 'IR_AMI';
+        const iconAnchor: [number, number] = isLeftAnchor ? [105, 13] : [15, 13];
 
         const html = `
-          <div class="relative -translate-x-1/2 -translate-y-1/2 cursor-pointer select-none">
+          <div class="relative cursor-pointer select-none">
             <div class="px-2.5 py-1 rounded-full bg-surface border border-hairline flex items-center gap-1.5 whitespace-nowrap shadow">
               <span class="w-2 h-2 rounded-full" style="background-color: ${dotColor}"></span>
               <span class="text-[11px] font-medium text-text">${port.name}</span>
               <span class="text-[10px] text-text-2 tabular-nums font-mono">${port.currentDraftMeters}м</span>
             </div>
-            ${badge ? `<div class="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 text-[8px] font-bold rounded bg-critical text-text">${badge}</div>` : ''}
+            ${badge ? `<div class="absolute -top-2.5 left-6 px-1.5 text-[8px] font-bold rounded bg-critical text-text shadow">${badge}</div>` : ''}
           </div>
         `;
 
         const icon = L.divIcon({
           html,
           className: 'port-marker',
-          iconSize: [110, 26],
-          iconAnchor: anchor,
+          iconSize: [120, 26],
+          iconAnchor,
         });
 
         const marker = L.marker([port.lat, port.lon], { icon });
@@ -347,24 +340,23 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
         `);
         markersGroup.addLayer(marker);
       } else {
-        // Нерелевантные порты (Баку, Актау, Туркменбаши): компактная точка с аккуратной подписью
+        // Нерелевантные порты (Баку, Актау, Туркменбаши): нейтральная серая точка (не зеленая!), подпись по hover
         const html = `
-          <div class="flex items-center gap-1 -translate-x-1/2 -translate-y-1/2 cursor-pointer select-none group">
-            <div class="w-2 h-2 rounded-full border border-hairline bg-surface-2 shrink-0" style="background-color: ${dotColor}"></div>
-            <span class="text-[9px] text-text-2 group-hover:text-text transition-colors whitespace-nowrap">${port.name.replace('Порт ', '')}</span>
+          <div class="relative -translate-x-1/2 -translate-y-1/2 cursor-pointer select-none" title="${port.name}">
+            <div class="w-2.5 h-2.5 rounded-full bg-surface-2 border border-text-2/60 shadow-sm hover:scale-150 hover:border-accent transition-transform"></div>
           </div>
         `;
 
         const icon = L.divIcon({
           html,
           className: 'port-dot-marker',
-          iconSize: [70, 14],
-          iconAnchor: [6, 7],
+          iconSize: [10, 10],
+          iconAnchor: [5, 5],
         });
 
         const marker = L.marker([port.lat, port.lon], { icon });
         marker.bindTooltip(
-          `<div class="text-[11px] font-medium text-text">${port.name} (${port.country}) · глубина ${port.currentDraftMeters}м</div>`,
+          `<div class="text-[11px] font-medium text-text">${port.name} (${port.country}) · ${port.currentDraftMeters}м</div>`,
           { className: 'glass-panel', direction: 'top' }
         );
         markersGroup.addLayer(marker);
@@ -441,18 +433,35 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
     // Автоматический пересчет fitBounds при смене режима, сценария и после «Применить»
     map.invalidateSize();
     if (viewScope === 'caspian') {
-      map.fitBounds(getCaspianActiveBounds(isSlotSynced, vessel), {
-        paddingTopLeft: [50, 60],
-        paddingBottomRight: [50, 60],
+      const caspianBounds = getCaspianActiveBounds(isSlotSynced, vessel);
+      console.warn('[CaspianMap] Auto fitBounds "caspian":', caspianBounds.toBBoxString());
+      map.fitBounds(caspianBounds, {
+        paddingTopLeft: [60, 70],
+        paddingBottomRight: [60, 60],
         maxZoom: 7,
         duration: 0.8,
       });
     } else {
-      map.fitBounds(getCanalBounds(), {
-        paddingTopLeft: [40, 80],
-        paddingBottomRight: [40, 80],
-        duration: 0.8,
-      });
+      if (isSlotSynced) {
+        // При переходе на Махачкалу охватываем канал и порт назначения
+        const syncedCanalBounds = L.latLngBounds([
+          [42.85, 47.10], // Махачкала
+          [46.65, 48.40], // Астрахань
+        ]);
+        console.warn('[CaspianMap] Auto fitBounds "canal (synced)":', syncedCanalBounds.toBBoxString());
+        map.fitBounds(syncedCanalBounds, {
+          paddingTopLeft: [40, 80],
+          paddingBottomRight: [40, 80],
+          duration: 0.8,
+        });
+      } else {
+        console.warn('[CaspianMap] Auto fitBounds "canal":', CANAL_BOUNDS.toBBoxString());
+        map.fitBounds(CANAL_BOUNDS, {
+          paddingTopLeft: [40, 80],
+          paddingBottomRight: [40, 80],
+          duration: 0.8,
+        });
+      }
     }
   }, [isCrisisActive, isSlotSynced, vkmskDepthMeters, ports, vessel, viewScope]);
 
