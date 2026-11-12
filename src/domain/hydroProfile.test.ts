@@ -33,4 +33,13 @@ describe('Hydro Profile & Predictive Timeline', () => {
     expect(pointAtT20.isRisk).toBe(false);
     expect(profile.isEtaInRiskWindow).toBe(false);
   });
+
+  it('reconstructs June 2026 historical depth of 3.38m with 9.0 m/s wind and 0.55m siltation', () => {
+    const profile = generateHydroTimeline(3.40, true, 20, 0.55, true);
+    expect(profile.minDepthMeters).toBe(3.38);
+    expect(profile.depthAtArrivalMeters).toBe(3.38);
+    expect(profile.clearanceAtArrivalMeters).toBe(-0.02);
+    expect(profile.isSafePass).toBe(false);
+    expect(profile.maxWindSpeedMs).toBe(9.0);
+  });
 });

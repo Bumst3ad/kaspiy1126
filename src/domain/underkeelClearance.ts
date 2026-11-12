@@ -89,13 +89,13 @@ export function calculateUnderkeelClearance(
   let statusLabel = 'Запас в норме (>=0.5 м)';
   let isAgroundRisk = false;
 
-  if (actualClearance <= 0) {
+  if (actualClearance < 0) {
     status = 'critical';
-    statusLabel = 'Риск посадки на мель';
+    statusLabel = 'Посадка на мель';
     isAgroundRisk = true;
   } else if (actualClearance < safetyMarginMeters) {
     status = 'warning';
-    statusLabel = 'Минимальный запас <0.5 м (допущение)';
+    statusLabel = 'Проход под контролем (<0.5 м)';
     isAgroundRisk = false;
   }
 

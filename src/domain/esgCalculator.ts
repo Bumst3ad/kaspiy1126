@@ -1,4 +1,7 @@
 import { EMISSION_FACTORS } from '../data/emissionFactors';
+import { calculateRouteEmissions } from './emissions';
+
+export { calculateRouteEmissions, type RouteType, type RouteEmissionsResult } from './emissions';
 
 export interface RouteSegment {
   mode: 'sea' | 'rail' | 'road';
@@ -15,40 +18,24 @@ export interface EsgComparisonResult {
   methodology: string;
 }
 
-/**
- * Расчет углеродного следа перевозки по методике GLEC Framework v3.0 / ISO 14083
- * Формула: Выбросы = Масса (т) * Расстояние (км) * Коэффициент (г CO2 / т·км) / 1000
- */
 export function calculateSegmentCo2(tonnage: number, mode: 'sea' | 'rail' | 'road', distanceKm: number): number {
   const factor = EMISSION_FACTORS[mode]?.gCo2PerTonKm || 20.0;
   return Number(((tonnage * distanceKm * factor) / 1000).toFixed(1));
 }
 
-export function compareRouteEsg(cargoTonnage: number): EsgComparisonResult {
-  // 1. Базовый морской транзитный маршрут через Астрахань: Ж/Д 1400 км + Море 820 км
-  const baselineRailCo2 = calculateSegmentCo2(cargoTonnage, 'rail', 1400);
-  const baselineSeaCo2 = calculateSegmentCo2(cargoTonnage, 'sea', 820);
-  const multimodalCo2Kg = baselineRailCo2 + baselineSeaCo2;
+export function compareRouteEsg(cargoTonnage: number, isSlotSynced = false): EsgComparisonResult {
+  const baseline = calculateRouteEmissions(cargoTonnage, 'baseline');
+  const sync = calculateRouteEmissions(cargoTonnage, 'makhachkala');
 
-  // 2. Альтернативный полностью автомобильный маршрут: Фуры 2950 км
-  const roadAlternativeCo2Kg = calculateSegmentCo2(cargoTonnage, 'road', 2950);
-
-  // 3. Маршрут Caspian Sync-Slot через Махачкалу: Ж/Д 1850 км + Море 620 км
-  const syncRailCo2 = calculateSegmentCo2(cargoTonnage, 'rail', 1850);
-  const syncSeaCo2 = calculateSegmentCo2(cargoTonnage, 'sea', 620);
-  const syncSlotCo2Kg = syncRailCo2 + syncSeaCo2;
-
-  const savingsVsRoadKg = Number((roadAlternativeCo2Kg - syncSlotCo2Kg).toFixed(1));
-  const savingsVsRoadTons = Number((savingsVsRoadKg / 1000).toFixed(2));
-  const savingsPercent = Number(((savingsVsRoadKg / roadAlternativeCo2Kg) * 100).toFixed(1));
+  const active = isSlotSynced ? sync : baseline;
 
   return {
-    multimodalCo2Kg,
-    roadAlternativeCo2Kg,
-    syncSlotCo2Kg,
-    savingsVsRoadKg,
-    savingsVsRoadTons,
-    savingsPercent,
+    multimodalCo2Kg: Math.round(active.multimodalCo2Tons * 1000),
+    roadAlternativeCo2Kg: Math.round(active.roadCo2Tons * 1000),
+    syncSlotCo2Kg: Math.round(sync.multimodalCo2Tons * 1000),
+    savingsVsRoadKg: Math.round(active.savingsCo2Tons * 1000),
+    savingsVsRoadTons: active.savingsCo2Tons,
+    savingsPercent: active.savingsPercent,
     methodology: 'GLEC Framework v3.0 / ISO 14083 (ориентировочно)',
   };
 }

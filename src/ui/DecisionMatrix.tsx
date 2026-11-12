@@ -11,7 +11,8 @@ import {
   ChevronUp,
   HelpCircle,
   CheckCircle2,
-  Anchor
+  Anchor,
+  AlertTriangle
 } from 'lucide-react';
 import { DecisionScenario } from '../domain/scenarioDecision';
 
@@ -43,146 +44,131 @@ export const DecisionMatrix: React.FC<DecisionMatrixProps> = ({
   const secondaryScenarios = scenarios.filter((s) => s !== recommendedScenario);
 
   return (
-    <div className="glass-panel rounded-panel p-5 flex flex-col gap-4 text-text select-none border border-hairline">
-      {/* Title */}
-      <div className="flex items-start justify-between border-b border-divider pb-3">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-inner bg-surface-2 border border-hairline flex items-center justify-center text-accent">
+    <div className="glass-panel rounded-panel p-4 flex flex-col gap-3 text-text select-none border border-hairline">
+      {/* Sticky Panel Header: Сплошной непрозрачный фон surface + hairline, контент не просвечивает */}
+      <div className="sticky top-0 bg-surface z-20 flex items-center justify-between border-b border-hairline pb-2.5 pt-1 -mt-1 shadow-sm">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-inner bg-surface-2 border border-hairline flex items-center justify-center text-accent shrink-0">
             <Zap className="w-4 h-4" strokeWidth={1.5} />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm tracking-tight text-text">
-                Панель поддержки решений логиста
-              </span>
-            </div>
-            <p className="text-xs text-text-2 mt-0.5">
-              Динамический выбор оптимального сценария на основе осадки, наносов и часа ETA
+            <span className="font-semibold text-sm tracking-tight text-text block">
+              Панель поддержки решений
+            </span>
+            <p className="text-[11px] text-text-2">
+              Динамический выбор маршрута (осадка, наносы, ETA)
             </p>
           </div>
         </div>
 
-        <span className="text-xs px-2.5 py-0.5 rounded-full bg-surface-2 text-text-2 border border-hairline">
-          {isPassOnly ? 'Штатно' : `${scenarios.length} альтернативы`}
+        <span className="text-[11px] px-2 py-0.5 rounded-full bg-surface-2 text-text-2 border border-hairline shrink-0">
+          {isPassOnly ? 'Штатно' : `${scenarios.length} варианта`}
         </span>
       </div>
 
       {/* Case 1: Pass without incident */}
       {isPassOnly && (
-        <div className="p-4 rounded-inner border border-ok bg-ok-muted space-y-3">
+        <div className="p-3.5 rounded-inner border border-ok bg-ok-muted space-y-2.5">
           <div className="flex items-start gap-2.5 text-ok">
-            <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" strokeWidth={1.5} />
+            {scenarios[0].title.includes('контролем') ? (
+              <AlertTriangle className="w-4 h-4 text-warn shrink-0 mt-0.5" strokeWidth={1.5} />
+            ) : (
+              <CheckCircle2 className="w-4 h-4 text-ok shrink-0 mt-0.5" strokeWidth={1.5} />
+            )}
             <div>
-              <div className="font-semibold text-sm text-text">
+              <div className="font-semibold text-xs text-text">
                 {scenarios[0].title}
               </div>
-              <p className="text-xs text-text-2 mt-0.5">
+              <p className="text-[11px] text-text-2 mt-0.5">
                 {scenarios[0].subtitle}
               </p>
             </div>
           </div>
 
-          <div className="space-y-1.5 bg-surface p-3 rounded-inner border border-hairline text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-text-2">Осадка судна:</span>
+          <div className="grid grid-cols-2 gap-1.5 bg-surface p-2.5 rounded-inner border border-hairline text-[11px]">
+            <div className="flex items-center justify-between col-span-2">
+              <span className="text-text-2">Осадка:</span>
               <span className="text-ok flex items-center gap-1 font-medium">
-                <Check className="w-3.5 h-3.5" />
+                <Check className="w-3 h-3" />
                 <span>{scenarios[0].feasibility.draftDetail}</span>
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-text-2">Причал и кран:</span>
-              <span className="text-ok flex items-center gap-1 font-medium">
-                <Check className="w-3.5 h-3.5" />
-                <span>{scenarios[0].feasibility.berthAndCraneDetail}</span>
+              <span className="text-text-2">Причал/кран:</span>
+              <span className="text-ok flex items-center gap-1">
+                <Check className="w-3 h-3" />
+                <span>Готов</span>
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-text-2">Нитка РЖД:</span>
-              <span className="text-ok flex items-center gap-1 font-medium">
-                <Check className="w-3.5 h-3.5" />
-                <span>{scenarios[0].feasibility.rzdSlotDetail}</span>
+              <span className="text-ok flex items-center gap-1">
+                <Check className="w-3 h-3" />
+                <span>RZD-Slot-A04</span>
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-text-2">Локомотив:</span>
-              <span className="text-ok flex items-center gap-1 font-medium">
-                <Check className="w-3.5 h-3.5" />
-                <span>{scenarios[0].feasibility.locomotiveDetail}</span>
-              </span>
-            </div>
-          </div>
-
-          <div className="p-2.5 rounded bg-surface border border-hairline text-xs text-text-2 leading-relaxed">
-            Рекомендация: Судно проходит лимитирующий бар без задержек. Вмешательства диспетчера не требуется.
           </div>
         </div>
       )}
 
       {/* Case 2: Risk occurs -> Recommended Large Card + Collapsed Alternatives */}
       {!isPassOnly && (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2.5">
           {/* 1. КРУПНЫЙ ПЕРВЫЙ РЕКОМЕНДОВАННЫЙ ВАРИАНТ */}
-          <div className="p-4 rounded-inner border-2 border-accent bg-surface-2 shadow-lg space-y-3">
-            {/* Header */}
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sm text-text">
-                    {recommendedScenario.title}
-                  </span>
-                  <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-ok-muted border border-ok text-ok">
-                    Рекомендовано алгоритмом
-                  </span>
-                </div>
-                <p className="text-xs text-text-2 mt-1 leading-relaxed">
-                  {recommendedScenario.subtitle}
-                </p>
+          <div className="p-3.5 rounded-inner border-2 border-accent bg-surface-2 shadow-lg space-y-2.5">
+            {/* Header: Заголовок в одну строку, бейдж «Рекомендовано», «Формулы» — иконка-кнопка */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="font-semibold text-sm text-text truncate">
+                  {recommendedScenario.title}
+                </span>
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-ok-muted border border-ok text-ok shrink-0">
+                  Рекомендовано
+                </span>
               </div>
 
               <button
                 onClick={() => toggleExpand(recommendedScenario.id)}
-                className="px-2.5 py-1 rounded bg-surface border border-hairline text-xs text-text-2 hover:text-text flex items-center gap-1 transition-all cursor-pointer"
+                className="w-7 h-7 rounded bg-surface border border-hairline text-text-2 hover:text-accent flex items-center justify-center transition-all cursor-pointer shrink-0"
                 title="Формулы расчёта"
+                aria-label="Формулы расчёта"
               >
                 <HelpCircle className="w-3.5 h-3.5 text-accent" strokeWidth={1.5} />
-                <span>Формулы</span>
-                {expandedScenarioId === recommendedScenario.id ? (
-                  <ChevronUp className="w-3.5 h-3.5" />
-                ) : (
-                  <ChevronDown className="w-3.5 h-3.5" />
-                )}
               </button>
             </div>
 
-            {/* Delta Metrics Row */}
+            <p className="text-[11px] text-text-2 leading-tight">
+              {recommendedScenario.subtitle}
+            </p>
+
+            {/* Delta Metrics Row: 3 компактные карточки */}
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
-              <div className="bg-surface p-2 rounded-inner border border-hairline flex flex-col items-center justify-center">
-                <span className="text-text-2 flex items-center gap-1 mb-1 text-[11px]">
+              <div className="bg-surface p-1.5 rounded-inner border border-hairline flex flex-col items-center justify-center">
+                <span className="text-text-2 flex items-center gap-1 text-[10px]">
                   <Clock className="w-3 h-3 text-text-2" strokeWidth={1.5} />
                   Δ Время
                 </span>
-                <span className="font-semibold text-text font-mono tabular-nums text-sm">
+                <span className="font-semibold text-text font-mono tabular-nums text-xs">
                   +{recommendedScenario.deltaHours} ч
                 </span>
               </div>
 
-              <div className="bg-surface p-2 rounded-inner border border-hairline flex flex-col items-center justify-center">
-                <span className="text-text-2 flex items-center gap-1 mb-1 text-[11px]">
+              <div className="bg-surface p-1.5 rounded-inner border border-hairline flex flex-col items-center justify-center">
+                <span className="text-text-2 flex items-center gap-1 text-[10px]">
                   <DollarSign className="w-3 h-3 text-text-2" strokeWidth={1.5} />
                   Δ Затраты
                 </span>
-                <span className="font-semibold text-text font-mono tabular-nums text-sm">
+                <span className="font-semibold text-text font-mono tabular-nums text-xs">
                   +${recommendedScenario.deltaCostUsd.toLocaleString()}
                 </span>
               </div>
 
-              <div className="bg-surface p-2 rounded-inner border border-hairline flex flex-col items-center justify-center">
-                <span className="text-text-2 flex items-center gap-1 mb-1 text-[11px]">
+              <div className="bg-surface p-1.5 rounded-inner border border-hairline flex flex-col items-center justify-center">
+                <span className="text-text-2 flex items-center gap-1 text-[10px]">
                   <Leaf className="w-3 h-3 text-text-2" strokeWidth={1.5} />
                   Δ CO2
                 </span>
-                <span className="font-semibold text-text font-mono tabular-nums text-sm">
+                <span className="font-semibold text-text font-mono tabular-nums text-xs">
                   +{recommendedScenario.deltaCo2Tons} т
                 </span>
               </div>
@@ -190,9 +176,9 @@ export const DecisionMatrix: React.FC<DecisionMatrixProps> = ({
 
             {/* Expandable Formulas Box */}
             {expandedScenarioId === recommendedScenario.id && (
-              <div className="p-3 rounded bg-surface border border-accent text-xs space-y-1.5 text-text-2">
-                <div className="text-accent font-semibold flex items-center gap-1">
-                  Математический расчёт параметров:
+              <div className="p-2.5 rounded bg-surface border border-accent text-[11px] space-y-1 text-text-2">
+                <div className="text-accent font-semibold flex items-center gap-1 text-xs">
+                  Математический расчёт:
                 </div>
                 <div>
                   <span className="text-text">Время:</span> {recommendedScenario.calculationDetails.timeFormula}
@@ -206,69 +192,62 @@ export const DecisionMatrix: React.FC<DecisionMatrixProps> = ({
               </div>
             )}
 
-            {/* 4-Item Checklist */}
-            <div className="space-y-1.5 bg-surface p-2.5 rounded-inner border border-hairline text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-text-2">Осадка судна:</span>
+            {/* 4-Item Compact Checklist */}
+            <div className="grid grid-cols-2 gap-1.5 bg-surface p-2 rounded-inner border border-hairline text-[11px]">
+              <div className="flex items-center justify-between col-span-2">
+                <span className="text-text-2">Осадка:</span>
                 <span className="text-ok flex items-center gap-1">
-                  <Check className="w-3.5 h-3.5" />
+                  <Check className="w-3 h-3" />
                   <span>{recommendedScenario.feasibility.draftDetail}</span>
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-text-2">Причал и кран:</span>
+                <span className="text-text-2">Причал/кран:</span>
                 <span className="text-ok flex items-center gap-1">
-                  <Check className="w-3.5 h-3.5" />
-                  <span>{recommendedScenario.feasibility.berthAndCraneDetail}</span>
+                  <Check className="w-3 h-3" />
+                  <span>B-4 / KR-2</span>
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-text-2">Нитка РЖД:</span>
+                <span className="text-text-2">РЖД/тяга:</span>
                 <span className="text-ok flex items-center gap-1">
-                  <Check className="w-3.5 h-3.5" />
-                  <span>{recommendedScenario.feasibility.rzdSlotDetail}</span>
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-text-2">Локомотив:</span>
-                <span className="text-ok flex items-center gap-1">
-                  <Check className="w-3.5 h-3.5" />
-                  <span>{recommendedScenario.feasibility.locomotiveDetail}</span>
+                  <Check className="w-3 h-3" />
+                  <span>A-17 / LOC-41</span>
                 </span>
               </div>
             </div>
 
-            {/* Action Button for Recommended Option */}
+            {/* Action Button for Recommended Option: Visible without scrolling on 1366x768 */}
             {recommendedScenario.id === 'makhachkala' && !isSlotSynced && (
               <button
                 onClick={onApplySyncSlot}
                 disabled={isSyncing}
-                className="w-full py-2.5 px-4 rounded-inner bg-accent hover:opacity-90 active:opacity-100 text-text font-medium text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+                className="w-full py-2 px-3 rounded-inner bg-accent hover:opacity-90 active:opacity-100 text-text font-medium text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md"
               >
-                <Zap className="w-4 h-4" strokeWidth={1.5} />
+                <Zap className="w-3.5 h-3.5" strokeWidth={1.5} />
                 <span>Применить Caspian Sync-Slot (Махачкала)</span>
-                <ArrowRight className="w-4 h-4" strokeWidth={1.5} />
+                <ArrowRight className="w-3.5 h-3.5" strokeWidth={1.5} />
               </button>
             )}
 
             {recommendedScenario.id === 'wait' && (
-              <div className="p-2.5 rounded bg-ok-muted border border-ok text-ok text-xs font-medium flex items-center gap-2">
-                <Anchor className="w-4 h-4" strokeWidth={1.5} />
-                <span>Подтверждена кратковременная стоянка на внешнем рейде до T+54ч</span>
+              <div className="p-2 rounded bg-ok-muted border border-ok text-ok text-xs font-medium flex items-center gap-2">
+                <Anchor className="w-3.5 h-3.5" strokeWidth={1.5} />
+                <span>Подтверждена кратковременная стоянка на внешнем рейде</span>
               </div>
             )}
 
             {isSlotSynced && (
-              <div className="p-2.5 rounded bg-ok-muted border border-ok text-ok text-xs font-medium flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4" strokeWidth={1.5} />
-                <span>Сценарий активирован: судно и состав РЖД перенаправлены в Махачкалу</span>
+              <div className="p-2 rounded bg-ok-muted border border-ok text-ok text-xs font-medium flex items-center gap-2">
+                <ShieldCheck className="w-3.5 h-3.5" strokeWidth={1.5} />
+                <span>Сценарий активирован: переход в глубоководный порт Махачкала</span>
               </div>
             )}
           </div>
 
           {/* 2. НЕРЕАЛИЗУЕМЫЕ И ВТОРОСТЕПЕННЫЕ ВАРИАНТЫ (СВЕРНУТЫ В ОДНУ СТРОКУ) */}
-          <div className="space-y-2 pt-1">
-            <span className="text-xs text-text-2 block px-1">
+          <div className="space-y-1.5 pt-0.5">
+            <span className="text-[11px] text-text-2 block px-0.5">
               Альтернативные варианты:
             </span>
 
@@ -283,47 +262,62 @@ export const DecisionMatrix: React.FC<DecisionMatrixProps> = ({
                   {/* Collapsed One-Line Row */}
                   <div
                     onClick={() => toggleExpand(scenario.id)}
-                    className="p-3 flex items-center justify-between cursor-pointer text-xs"
+                    className="p-2.5 flex items-center justify-between cursor-pointer text-xs"
                   >
-                    <div className="flex items-center gap-2.5">
-                      <span className="font-medium text-text">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-text text-[11px]">
                         {scenario.title}
                       </span>
-                      <span className="text-text-2 font-mono tabular-nums text-[11px]">
-                        +{scenario.deltaHours} ч · +${scenario.deltaCostUsd.toLocaleString()}
+                      <span className="text-text-2 font-mono tabular-nums text-[10px]">
+                        +{scenario.deltaHours} ч · +${scenario.deltaCostUsd.toLocaleString()} · +{scenario.deltaCo2Tons} т CO2
                       </span>
                     </div>
 
                     <div className="flex items-center gap-2">
                       {scenario.rejectionReason ? (
-                        <span className="px-2 py-0.5 rounded text-[11px] bg-critical-muted border border-critical text-critical font-medium">
-                          {scenario.id === 'wait' ? 'Отказ: срыв слота >6 ч' : 'Отказ: нет плавкрана'}
+                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-critical-muted border border-critical text-critical font-medium">
+                          {scenario.id === 'wait' ? 'Риск: срыв слота >6 ч' : 'Риск: нет плавкрана'}
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded text-[11px] bg-surface-2 border border-hairline text-text-2">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-surface-2 border border-hairline text-text-2">
                           Менее выгодно
                         </span>
                       )}
                       {isExpanded ? (
-                        <ChevronUp className="w-3.5 h-3.5 text-text-2" />
+                        <ChevronUp className="w-3 h-3 text-text-2" />
                       ) : (
-                        <ChevronDown className="w-3.5 h-3.5 text-text-2" />
+                        <ChevronDown className="w-3 h-3 text-text-2" />
                       )}
                     </div>
                   </div>
 
-                  {/* Expanded Details */}
+                  {/* Expanded Details: Все 3 дельты + риск */}
                   {isExpanded && (
-                    <div className="p-3 border-t border-hairline bg-surface-2 text-xs space-y-2">
-                      <p className="text-text-2 leading-relaxed">
+                    <div className="p-2.5 border-t border-hairline bg-surface-2 text-xs space-y-2">
+                      <div className="grid grid-cols-3 gap-1.5 text-center text-[10px]">
+                        <div className="p-1 rounded bg-surface border border-hairline">
+                          <span className="text-text-2 block">Δ Время</span>
+                          <span className="font-mono font-semibold text-text tabular-nums">+{scenario.deltaHours} ч</span>
+                        </div>
+                        <div className="p-1 rounded bg-surface border border-hairline">
+                          <span className="text-text-2 block">Δ Затраты</span>
+                          <span className="font-mono font-semibold text-text tabular-nums">+${scenario.deltaCostUsd.toLocaleString()}</span>
+                        </div>
+                        <div className="p-1 rounded bg-surface border border-hairline">
+                          <span className="text-text-2 block">Δ CO2</span>
+                          <span className="font-mono font-semibold text-text tabular-nums">+{scenario.deltaCo2Tons} т</span>
+                        </div>
+                      </div>
+
+                      <p className="text-text-2 text-[11px] leading-relaxed">
                         {scenario.subtitle}
                       </p>
                       {scenario.rejectionReason && (
-                        <div className="p-2 rounded bg-surface border border-critical text-critical text-xs">
-                          {scenario.rejectionReason}
+                        <div className="p-1.5 rounded bg-surface border border-critical text-critical text-[11px]">
+                          <strong>Фактор риска:</strong> {scenario.rejectionReason}
                         </div>
                       )}
-                      <div className="space-y-1 bg-surface p-2 rounded text-xs text-text-2">
+                      <div className="space-y-1 bg-surface p-2 rounded text-[11px] text-text-2">
                         <div className="flex justify-between">
                           <span>Осадка:</span>
                           <span className={scenario.feasibility.draft ? 'text-ok' : 'text-critical'}>
@@ -340,12 +334,6 @@ export const DecisionMatrix: React.FC<DecisionMatrixProps> = ({
                           <span>Нитка РЖД:</span>
                           <span className={scenario.feasibility.rzdSlot ? 'text-ok' : 'text-critical'}>
                             {scenario.feasibility.rzdSlotDetail}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Локомотив:</span>
-                          <span className={scenario.feasibility.locomotive ? 'text-ok' : 'text-critical'}>
-                            {scenario.feasibility.locomotiveDetail}
                           </span>
                         </div>
                       </div>

@@ -46,7 +46,8 @@ export function generateHydroTimeline(
   vesselDraftMeters = 4.15,
   isCrisisMode = true,
   vesselEtaBarHour = 20,
-  siltationMeters = 0.35
+  siltationMeters = 0.35,
+  isJuneHistorical = false
 ): HydroProfileForecast {
   const points: HydroTimelinePoint[] = [];
   const hours = [0, 3, 6, 9, 12, 15, 18, 20, 24, 27, 30, 33, 36, 42, 48, 54, 60, 66, 72];
@@ -64,7 +65,13 @@ export function generateHydroTimeline(
     let wind = 3.5;
     let rumb = 'ЮВ';
 
-    if (isCrisisMode) {
+    if (isJuneHistorical) {
+      // Историческая реконструкция июньского кризиса:
+      // Устойчивый ветер 9.0 м/с (СЗ) и падение морского фона (0.47 м) + ветровой сгон (0.10 м) = 0.57 м
+      wind = 9.0;
+      rumb = 'СЗ';
+      windDrop = 0.57;
+    } else if (isCrisisMode) {
       if (h <= 12) {
         wind = Number((3.5 + (h / 12) * 3.5).toFixed(1));
         rumb = 'ЮВ';
@@ -143,7 +150,9 @@ export function generateHydroTimeline(
 
   // Расчет параметров в точке планового прибытия судна (ETA)
   let depthAtArrival = baseCalmDepth;
-  if (isCrisisMode) {
+  if (isJuneHistorical) {
+    depthAtArrival = Number((baseCalmDepth - 0.57).toFixed(2));
+  } else if (isCrisisMode) {
     if (vesselEtaBarHour >= 18 && vesselEtaBarHour <= 30) {
       depthAtArrival = Number((baseCalmDepth - 0.60).toFixed(2));
     } else if (vesselEtaBarHour > 30 && vesselEtaBarHour <= 54) {
@@ -227,7 +236,7 @@ export function getInterpolatedHydroPoint(
     vesselDraftMeters,
     clearanceMeters: clearance,
     windSpeedMs: wind,
-    windRumb: targetHour >= 12 && targetHour <= 54 ? 'СЗ' : 'ЮВ',
+    windRumb: lower.windRumb,
     isRisk,
     isWarning,
     vesselLat: lat,

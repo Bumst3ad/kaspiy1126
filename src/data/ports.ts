@@ -38,7 +38,7 @@ export const PORTS: PortData[] = [
     currentDraftMeters: 6.8,
     congestionPercent: 35,
     berthsAvailable: 5,
-    railGauge: '1520 мм (СКЖД)',
+    railGauge: '1520 мм',
     provenance: 'real',
   },
   {

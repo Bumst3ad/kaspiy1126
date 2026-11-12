@@ -1,3 +1,6 @@
+import { SYNC_SLOT_CONFIG } from './syncSlot';
+import { calculateRouteEmissions } from './emissions';
+
 export interface ScenarioFeasibility {
   draft: boolean;
   draftDetail: string;
@@ -50,18 +53,23 @@ export function evaluateDecisionScenarios(
 ): DecisionScenario[] {
   const clearance = Number((depthAtArrival - vesselDraftMeters).toFixed(2));
 
-  // ВЕТКА 1: Судно проходит без инцидента (например, типичная осадка 3.40 м при глубине 3.55 м)
+  // ВЕТКА 1: Судно проходит без критического дефицита
   if (clearance >= 0) {
+    const isControlPass = clearance < 0.5;
     const passScenario: DecisionScenario = {
       id: 'pass',
-      title: 'Штатный проход по графику (ВКМСК)',
-      subtitle: `Осадка ${vesselDraftMeters.toFixed(2)} м проходит лимитирующий бар (глубина ${depthAtArrival.toFixed(2)} м, запас +${clearance.toFixed(2)} м)`,
+      title: isControlPass ? 'Проход обеспечен (под контролем)' : 'Проход обеспечен (штатно)',
+      subtitle: isControlPass
+        ? `Осадка ${vesselDraftMeters.toFixed(2)} м, глубина ${depthAtArrival.toFixed(2)} м (запас +${clearance.toFixed(2)} м < порога 0.50 м, допущение)`
+        : `Осадка ${vesselDraftMeters.toFixed(2)} м проходит лимитирующий бар (глубина ${depthAtArrival.toFixed(2)} м, запас +${clearance.toFixed(2)} м >= 0.50 м)`,
       deltaHours: 0.0,
       deltaCostUsd: 0,
       deltaCo2Tons: 0.0,
       feasibility: {
         draft: true,
-        draftDetail: `Осадка ${vesselDraftMeters.toFixed(2)} м < глубины ${depthAtArrival.toFixed(2)} м (запас +${clearance.toFixed(2)} м)`,
+        draftDetail: isControlPass
+          ? `Осадка ${vesselDraftMeters.toFixed(2)} м < глубины ${depthAtArrival.toFixed(2)} м (запас +${clearance.toFixed(2)} м < порога 0.5 м, требуется контроль)`
+          : `Осадка ${vesselDraftMeters.toFixed(2)} м < глубины ${depthAtArrival.toFixed(2)} м (запас +${clearance.toFixed(2)} м >= 0.5 м, норма)`,
         berthAndCrane: true,
         berthAndCraneDetail: 'Причал B-1 и кран KR-1 в порту Астрахань готовы по графику',
         rzdSlot: true,
@@ -77,7 +85,7 @@ export function evaluateDecisionScenarios(
         co2Formula: 'ΔCO2 = 0 т (плановый углеродный след рейса)',
         assumptions: [
           'Типичная осадка судов река-море на Каспии: 3.20-3.60 м',
-          'При запасе >=0 м судоходство не прерывается',
+          'При запасе >=0 м судоходство не прерывается; при <0.50 м требуется проводка под контролем',
         ],
       },
       provenance: 'assumption',
@@ -150,41 +158,47 @@ export function evaluateDecisionScenarios(
 
   // 2. Сценарий: Caspian Sync-Slot (Махачкала)
   // Морской путь от внешнего рейда: 213 км / 18.9 км/ч (10.2 узла) = 11.3 ч (vs канал 188 км / 14.8 км/ч = 12.7 ч -> море быстрее на -1.4 ч)
-  // Доп. ж/д плечо СКЖД до Москвы: +450 км / 45 км/ч = +10.0 ч
+  // Доп. ж/д плечо РЖД до Москвы: +450 км / 45 км/ч = +10.0 ч
   // Диспетчерская стыковка: +1.5 ч
   // Итого ΔT = +10.1 ч
   const deltaHoursMakhachkala = 10.1;
-  const deltaCostMakhachkala = 16400; // Доп. тариф СКЖД ($20 600) - сборы ВКМСК ($4 200)
-  const deltaCo2Makhachkala = 38.9;
+  const deltaCostMakhachkala = 16400; // Доп. тариф РЖД ($20 600) - сборы ВКМСК ($4 200)
+
+  // Единый расчет выбросов строго из emissions.ts: Море+ЖД Махачкала (226.1) - Базовый (198.6) = +27.5 т
+  const baselineEmissions = calculateRouteEmissions(4360, 'baseline');
+  const makhachkalaEmissions = calculateRouteEmissions(4360, 'makhachkala');
+  const deltaCo2Makhachkala = Number(
+    (makhachkalaEmissions.multimodalCo2Tons - baselineEmissions.multimodalCo2Tons).toFixed(1)
+  );
 
   const makhachkalaScenario: DecisionScenario = {
     id: 'makhachkala',
     title: 'Caspian Sync-Slot (Махачкала)',
     subtitle: isMakhachkalaRecommended
-      ? 'Переход в глубоководный порт Махачкала + сквозная нитка СКЖД (100% реализуемо)'
+      ? 'Переход в глубоководный порт Махачкала + сквозная нитка РЖД (100% реализуемо)'
       : `Менее выгодно: переплата $${(deltaCostMakhachkala - totalWaitCost).toLocaleString()} ради экономии ${(waitHours - deltaHoursMakhachkala).toFixed(1)} ч`,
     deltaHours: deltaHoursMakhachkala,
     deltaCostUsd: deltaCostMakhachkala,
     deltaCo2Tons: deltaCo2Makhachkala,
     feasibility: {
       draft: true,
-      draftDetail: `Глубина 6.80 м > осадки ${vesselDraftMeters} м (запас +${(6.80 - vesselDraftMeters).toFixed(2)} м)`,
+      draftDetail: `Глубина ${SYNC_SLOT_CONFIG.targetDepthMeters.toFixed(2)} м > осадки ${vesselDraftMeters} м (запас +${(SYNC_SLOT_CONFIG.targetDepthMeters - vesselDraftMeters).toFixed(2)} м)`,
       berthAndCrane: true,
-      berthAndCraneDetail: 'Глубоководный причал B-4 свободен, кран KR-2 (32 т) готов к перевалке 218 TEU',
+      berthAndCraneDetail: `Глубоководный причал ${SYNC_SLOT_CONFIG.berthNumber} свободен, кран ${SYNC_SLOT_CONFIG.craneName} готов к перевалке 218 TEU`,
       rzdSlot: true,
-      rzdSlotDetail: 'Сквозная нитка графика RZD-Slot-A17 согласована диспетчером',
+      rzdSlotDetail: `Сквозная нитка графика ${SYNC_SLOT_CONFIG.slotNumber} согласована диспетчером`,
       locomotive: true,
-      locomotiveDetail: 'Магистральный локомотив LOC-41 подан под погрузку',
+      locomotiveDetail: `Магистральный локомотив ${SYNC_SLOT_CONFIG.locomotiveId} подан под погрузку`,
     },
     isFeasible: true,
     isRecommended: isMakhachkalaRecommended,
     calculationDetails: {
       timeFormula: `ΔT = ΔT_море (11.3ч - 12.7ч = -1.4ч) + ΔT_ж/д (+450км / 45км/ч = +10.0ч) + стыковка (+1.5ч) = +${deltaHoursMakhachkala} ч`,
       costFormula: `Δ$ = Доп. тариф ж/д плеча 450 км ($20 600 / $95 за TEU) - сборы ВКМСК ($4 200) = +$${deltaCostMakhachkala.toLocaleString()}`,
-      co2Formula: `ΔCO2 = +450 км электротяги (+43.2 т) - предотвращенная стоянка (-${waitCo2} т) = +${deltaCo2Makhachkala} т (экономия vs фур: 1015 т)`,
+      co2Formula: `ΔCO2 = Море+Ж/Д Махачкала (${makhachkalaEmissions.multimodalCo2Tons} т) - Базовый (${baselineEmissions.multimodalCo2Tons} т) = +${deltaCo2Makhachkala} т (экономия vs фур: ${makhachkalaEmissions.savingsCo2Tons} т)`,
       assumptions: [
         'Морской переход: 213 км по глубоководному морю без захода в канал',
-        'Дополнительное ж/д плечо СКЖД до Москвы: +450 км (Прейскурант 10-01: $0.0105/т·км)',
+        'Дополнительное ж/д плечо РЖД до Москвы: +450 км (Прейскурант 10-01: $0.0105/т·км)',
         'Скорость контейнерного поезда: 45 км/ч (1080 км/сут)',
       ],
     },

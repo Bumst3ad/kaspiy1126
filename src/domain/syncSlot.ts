@@ -1,11 +1,23 @@
 import { CASPIAN_ASSUMPTIONS } from '../data/assumptions';
 
+export const SYNC_SLOT_CONFIG = {
+  slotNumber: 'RZD-Slot-A17',
+  berthNumber: 'B-4',
+  craneName: 'KR-2 (32 т)',
+  locomotiveId: 'LOC-41',
+  portId: 'RU_MCX',
+  portName: 'Морской порт Махачкала',
+  targetDepthMeters: 6.8,
+  destinationStation: 'ст. Терминал Демо-Север',
+};
+
 export interface TripartiteSyncPlan {
   status: 'recommended' | 'synced' | 'not_needed';
   originalPortId: string;
   targetPortId: string;
   targetPortName: string;
   targetBerthNumber: number;
+  targetBerthName: string;
   targetDepthMeters: number;
   rzdTimetableSlotNumber: string;
   rzdDestinationStation: string;
@@ -30,8 +42,9 @@ export function evaluateTripartiteSyncSlot(
       targetPortId: 'RU_AST',
       targetPortName: 'Порт Астрахань',
       targetBerthNumber: 1,
+      targetBerthName: 'B-1',
       targetDepthMeters: 4.5,
-      rzdTimetableSlotNumber: '№1102 (ПривЖД)',
+      rzdTimetableSlotNumber: 'RZD-Slot-A04',
       rzdDestinationStation: 'ст. Астрахань-2',
       predictedDelayHoursWithoutSync: estimatedVesselDelayHours,
       predictedDelayHoursWithSync: estimatedVesselDelayHours,
@@ -53,11 +66,12 @@ export function evaluateTripartiteSyncSlot(
   return {
     status: 'recommended',
     originalPortId: 'RU_AST',
-    targetPortId: 'RU_MCX',
-    targetPortName: 'Морской порт Махачкала',
+    targetPortId: SYNC_SLOT_CONFIG.portId,
+    targetPortName: SYNC_SLOT_CONFIG.portName,
     targetBerthNumber: 4,
-    targetDepthMeters: 6.8, // Глубоководный причал без риска мели
-    rzdTimetableSlotNumber: '№3801 (СКЖД)',
+    targetBerthName: SYNC_SLOT_CONFIG.berthNumber,
+    targetDepthMeters: SYNC_SLOT_CONFIG.targetDepthMeters,
+    rzdTimetableSlotNumber: SYNC_SLOT_CONFIG.slotNumber,
     rzdDestinationStation: 'ст. Махачкала-Порт',
     predictedDelayHoursWithoutSync: delayWithoutSync,
     predictedDelayHoursWithSync: delayWithSync,

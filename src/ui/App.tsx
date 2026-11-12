@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Info } from 'lucide-react';
 import { Header, ScenarioPresetMode } from './Header';
 import { CaspianMap } from './CaspianMap';
 import { HydroChart } from './HydroChart';
@@ -9,6 +10,7 @@ import { PORTS } from '../data/ports';
 import { INITIAL_VESSEL, INITIAL_CARGO } from '../data/vessels';
 import { generateHydroTimeline, getInterpolatedHydroPoint } from '../domain/hydroProfile';
 import { evaluateDecisionScenarios } from '../domain/scenarioDecision';
+import { CASPIAN_ASSUMPTIONS } from '../data/assumptions';
 
 export const App: React.FC = () => {
   const [presetMode, setPresetMode] = useState<ScenarioPresetMode>('sgon');
@@ -42,20 +44,21 @@ export const App: React.FC = () => {
       setVesselEtaBarHour(20);
       setCurrentHour(20);
     } else if (mode === 'june2026') {
-      // Экстремальные наносы 0.55 м по Минтрансу (глубина падает до 3.35 м)
-      setVesselDraft(4.15);
+      // Экстремальные наносы 0.55 м по Минтрансу (глубина падает до 3.38 м, осадка 3.40 м)
+      setVesselDraft(3.40);
       setSiltationMeters(0.55);
       setVesselEtaBarHour(20);
       setCurrentHour(20);
     }
   };
 
+  const isJuneMode = presetMode === 'june2026';
   const isCrisisActive = presetMode !== 'nominal';
 
   // Предиктивный гидрологический профиль на 72 часа
   const hydroForecast = useMemo(() => {
-    return generateHydroTimeline(vesselDraft, isCrisisActive, vesselEtaBarHour, siltationMeters);
-  }, [vesselDraft, isCrisisActive, vesselEtaBarHour, siltationMeters]);
+    return generateHydroTimeline(vesselDraft, isCrisisActive, vesselEtaBarHour, siltationMeters, isJuneMode);
+  }, [vesselDraft, isCrisisActive, vesselEtaBarHour, siltationMeters, isJuneMode]);
 
   // Интерполированная точка в выбранный час на таймлайне
   const currentHydroPoint = useMemo(() => {
@@ -79,7 +82,7 @@ export const App: React.FC = () => {
         ...INITIAL_VESSEL,
         draftMeters: vesselDraft,
         status: 'rerouted' as const,
-        destination: 'Порт Махачкала (причал B-4, глубина 6.8 м) → СКЖД → Москва',
+        destination: 'Порт Махачкала (причал B-4, глубина 6.8 м) → РЖД → Москва',
         lat: 43.60,
         lon: 47.65,
       };
@@ -94,6 +97,13 @@ export const App: React.FC = () => {
       lon: currentHydroPoint.vesselLon,
     };
   }, [isSlotSynced, vesselDraft, currentHydroPoint, isCrisisActive, currentHour]);
+
+  // Выбор сценариев для карточки судна
+  const waitScenario = scenarios.find((s) => s.id === 'wait') || scenarios[0];
+  const activeScenario =
+    scenarios.find((s) => s.id === selectedScenarioId) ||
+    scenarios.find((s) => s.isRecommended) ||
+    scenarios[0];
 
   // Выполнение синхронизации слота (Caspian Sync-Slot)
   const handleSyncSlot = () => {
@@ -134,11 +144,32 @@ export const App: React.FC = () => {
         onReset={handleReset}
       />
 
+      {/* Исторический баннер реконструкции «Июнь 2026» */}
+      {isJuneMode && (
+        <div className="shrink-0 px-6 pt-2 max-w-[1840px] w-full mx-auto">
+          <div className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-lg bg-surface border border-hairline text-xs text-text-2">
+            <Info className="w-3.5 h-3.5 shrink-0 text-accent" strokeWidth={1.5} />
+            <span className="flex-1">
+              Реконструкция по открытым данным: закрытие 151–155 км{' '}
+              <strong className="text-text font-medium">{String(CASPIAN_ASSUMPTIONS.june2026ClosureDates?.value || '10–12 и с 19 июня 2026')}</strong>
+              , глубина ≈
+              <strong className="text-text font-medium">{String(CASPIAN_ASSUMPTIONS.june2026CrisisReconstruction?.value || '3.38 м')}</strong>
+              , в очереди ≈
+              <strong className="text-text font-medium">{String(CASPIAN_ASSUMPTIONS.june2026VesselQueue?.value || '50')} судов</strong>{' '}
+              ({CASPIAN_ASSUMPTIONS.june2026CrisisReconstruction?.source || 'Минтранс РФ, Интерфакс'}). Остальное — симуляция.
+            </span>
+            <span className="shrink-0 px-1.5 py-0.5 rounded border border-hairline text-[10px] text-text-2 font-mono">
+              Архив 2026
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Main Grid: Exact 100vh viewport fit, scroll ONLY inside right column */}
-      <main className="flex-1 min-h-0 px-6 pb-4 pt-3 grid grid-cols-1 lg:grid-cols-12 gap-5 overflow-hidden max-w-[1840px] w-full mx-auto">
-        {/* Left Column: Fullscreen Map Canvas + Predictive Hydro Profile under map */}
-        <section className="lg:col-span-7 h-full flex flex-col justify-between overflow-hidden">
-          <div className="flex-1 min-h-[340px] w-full overflow-hidden">
+      <main className="flex-1 min-h-0 px-6 pb-3 pt-2 grid grid-cols-1 lg:grid-cols-12 gap-4 overflow-hidden max-w-[1840px] w-full mx-auto">
+        {/* Left Column: Grid: Map minmax(260px, 1fr) + Timeline Auto */}
+        <section className="lg:col-span-7 h-full grid grid-rows-[minmax(260px,1fr)_auto] gap-3 overflow-hidden min-h-0">
+          <div className="w-full h-full min-h-0 overflow-hidden">
             <CaspianMap
               ports={PORTS}
               vessel={vessel}
@@ -149,7 +180,7 @@ export const App: React.FC = () => {
           </div>
 
           {/* Предиктивный график под картой с маркером ETA, P10-P90, автоплеем и селекторами */}
-          <div className="shrink-0">
+          <div className="w-full shrink-0 min-h-0">
             <HydroChart
               profile={hydroForecast}
               currentPoint={currentHydroPoint}
@@ -167,7 +198,7 @@ export const App: React.FC = () => {
         </section>
 
         {/* Right Inspector & Cargo Cards: Скролл ТОЛЬКО внутри этой колонки */}
-        <section className="lg:col-span-5 h-full overflow-y-auto pr-1.5 flex flex-col gap-4">
+        <section className="lg:col-span-5 h-full overflow-y-auto pr-1 flex flex-col gap-3 min-h-0">
           {/* Панель «Решение» при риске: Крупный рекомендованный вариант + свернутые альтернативы */}
           <DecisionMatrix
             scenarios={scenarios}
@@ -178,13 +209,14 @@ export const App: React.FC = () => {
             isSyncing={isSyncing}
           />
 
-          {/* Карточка судна и гидро-радар */}
+          {/* Карточка судна и гидро-радар (без дублирующей кнопки Sync-Slot) */}
           <SyncSlotPanel
             vessel={vessel}
             vkmskDepthMeters={currentHydroPoint.depthMeters}
-            isCrisisActive={isRiskState && !isSlotSynced}
             isSlotSynced={isSlotSynced}
-            onSyncSlot={handleSyncSlot}
+            isCrisisActive={isRiskState && !isSlotSynced}
+            waitScenario={waitScenario}
+            selectedScenario={activeScenario}
           />
 
           {/* Цифровой двойник партии груза (Pre-clearance + ESG) */}
@@ -192,6 +224,7 @@ export const App: React.FC = () => {
             cargo={cargo}
             isPreCleared={isPreCleared}
             onPreClear={handlePreClear}
+            isSlotSynced={isSlotSynced}
           />
         </section>
       </main>

@@ -5,7 +5,7 @@ export interface OperationalAssumption {
   label: string;
   value: number | string;
   unit: string;
-  provenance: 'assumption';
+  provenance: 'real' | 'synthetic' | 'assumption';
   source: string;
   note: string;
 }
@@ -94,12 +94,21 @@ export const CASPIAN_ASSUMPTIONS: Record<string, OperationalAssumption> = {
   },
   makhachkalaRerouteSurchargeUsd: {
     key: 'makhachkalaRerouteSurchargeUsd',
-    label: 'Доплата за ж/д плечо СКЖД до Махачкалы',
+    label: 'Доплата за ж/д плечо РЖД до Махачкалы',
     value: 1200,
     unit: 'USD/состав',
     provenance: 'assumption',
     source: 'Прейскурант 10-01 РЖД (дополнительный пробег)',
     note: 'Разница в ж/д тарифе при перенаправлении на ст. Махачкала-Порт',
+  },
+  hsCodeClassification: {
+    key: 'hsCodeClassification',
+    label: 'Классификация ТН ВЭД ПВД',
+    value: '3901 10 900 0',
+    unit: 'код',
+    provenance: 'assumption',
+    source: 'ТН ВЭД ЕАЭС (полиэтилен удельного веса <0.94)',
+    note: 'ПВД низкой плотности соответствует коду 3901 10 900 0. Проверить у декларанта',
   },
   anchorAuxDieselCo2TonsPerDay: {
     key: 'anchorAuxDieselCo2TonsPerDay',
@@ -109,5 +118,50 @@ export const CASPIAN_ASSUMPTIONS: Record<string, OperationalAssumption> = {
     provenance: 'assumption',
     source: 'IMO GHG Study (расход MGO вспомогательными дизель-генераторами)',
     note: 'Судно на якоре сжигает около 0.6 т топлива в сутки для судовых нужд',
+  },
+  preClearanceProcessingHoursWithout: {
+    key: 'preClearanceProcessingHoursWithout',
+    label: 'Срок таможенного оформления без Pre-clearance',
+    value: 48,
+    unit: 'ч',
+    provenance: 'assumption',
+    source: 'Таможенный регламент Каспийского бассейна (допущение)',
+    note: 'Традиционное оформление бумажного пакета e-CMR и санитарный контроль',
+  },
+  preClearanceProcessingHoursWith: {
+    key: 'preClearanceProcessingHoursWith',
+    label: 'Срок оформления при цифровом Pre-clearance',
+    value: 1.5,
+    unit: 'ч',
+    provenance: 'assumption',
+    source: 'Пилотный коридор зеленой таможни (допущение)',
+    note: 'Предварительная проверка электронного манифеста до прибытия судна в порт',
+  },
+  june2026CrisisReconstruction: {
+    key: 'june2026CrisisReconstruction',
+    label: 'Исторический кризис глубин ВКМСК (июнь)',
+    value: '3.38 м',
+    unit: 'м',
+    provenance: 'real',
+    source: 'Минтранс РФ, Интерфакс (открытые публикации)',
+    note: 'Закрытие 151–155 км 10–12 и с 19 июня; глубина ≈3.38 м, в очереди скопилось ≈50 судов',
+  },
+  june2026ClosureDates: {
+    key: 'june2026ClosureDates',
+    label: 'Даты ограничения судоходства по бару 151–155 км',
+    value: '10–12 и с 19 июня 2026',
+    unit: 'период',
+    provenance: 'real',
+    source: 'Распоряжения Росморпорта / Минтранс РФ',
+    note: 'Временный запрет движения судов с осадкой более 3.20-3.35 м',
+  },
+  june2026VesselQueue: {
+    key: 'june2026VesselQueue',
+    label: 'Очередь судов на внешнем рейде ВКМСК',
+    value: 50,
+    unit: 'судов',
+    provenance: 'real',
+    source: 'Интерфакс / Росморречфлот',
+    note: 'Скопление флота река-море на внешнем рейде в ожидании дноуглубления',
   },
 };
