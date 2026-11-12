@@ -1,22 +1,40 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Info } from 'lucide-react';
-import { Header, ScenarioPresetMode } from './Header';
+import { Header, ScenarioPresetMode, ViewRole } from './Header';
 import { CaspianMap } from './CaspianMap';
 import { HydroChart } from './HydroChart';
 import { SyncSlotPanel } from './SyncSlotPanel';
 import { DecisionMatrix } from './DecisionMatrix';
 import { CargoCard } from './CargoCard';
+import { DemoPanel } from './DemoPanel';
 import { PORTS } from '../data/ports';
 import { INITIAL_VESSEL, INITIAL_CARGO } from '../data/vessels';
-import { generateHydroTimeline, getInterpolatedHydroPoint } from '../domain/hydroProfile';
+import {
+  generateHydroTimeline,
+  getInterpolatedHydroPoint,
+  calculateGroundingProbability,
+} from '../domain/hydroProfile';
 import { evaluateDecisionScenarios } from '../domain/scenarioDecision';
 import { CASPIAN_ASSUMPTIONS } from '../data/assumptions';
 
 export const App: React.FC = () => {
+  const [viewRole, setViewRole] = useState<ViewRole>('demo');
   const [presetMode, setPresetMode] = useState<ScenarioPresetMode>('sgon');
   const [isSlotSynced, setIsSlotSynced] = useState(false);
   const [isPreCleared, setIsPreCleared] = useState(false);
   const [currentHour, setCurrentHour] = useState(20);
+
+  // Клавиша D для быстрого переключения Демо | Диспетчер
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === 'd' || e.key === 'D' || e.key === 'в' || e.key === 'В') {
+        setViewRole((prev) => (prev === 'demo' ? 'dispatcher' : 'demo'));
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Интерактивные параметры реконструкции
   const [vesselDraft, setVesselDraft] = useState(4.15); // 4.15 м (Volgo-Max) или 3.40 м (типичная)
@@ -131,6 +149,17 @@ export const App: React.FC = () => {
 
   const isRiskState = (isCrisisActive && hydroForecast.isEtaInRiskWindow) || currentHydroPoint.isRisk;
 
+  // Расчет вероятности риска мели по модели нормального приближения P10-P90
+  const groundingProbability = useMemo(() => {
+    const point = hydroForecast.timeline.find((t) => t.hour === vesselEtaBarHour) || currentHydroPoint;
+    return calculateGroundingProbability(
+      vesselDraft,
+      hydroForecast.depthAtArrivalMeters,
+      point.p10DepthMeters,
+      point.p90DepthMeters
+    );
+  }, [vesselDraft, hydroForecast, vesselEtaBarHour, currentHydroPoint]);
+
   return (
     <div className="h-screen max-h-screen overflow-hidden bg-base text-text flex flex-col font-sans select-none">
       {/* Top Fixed Header (h-16, shrink-0, zero page overlap) */}
@@ -142,6 +171,8 @@ export const App: React.FC = () => {
         onSelectPresetMode={handleSelectPresetMode}
         isSlotSynced={isSlotSynced}
         onReset={handleReset}
+        viewRole={viewRole}
+        onSelectViewRole={setViewRole}
       />
 
       {/* Исторический баннер реконструкции «Июнь 2026» */}
@@ -199,33 +230,54 @@ export const App: React.FC = () => {
 
         {/* Right Inspector & Cargo Cards: Скролл ТОЛЬКО внутри этой колонки */}
         <section className="lg:col-span-5 h-full overflow-y-auto pr-1 flex flex-col gap-3 min-h-0">
-          {/* Панель «Решение» при риске: Крупный рекомендованный вариант + свернутые альтернативы */}
-          <DecisionMatrix
-            scenarios={scenarios}
-            selectedScenarioId={selectedScenarioId}
-            onSelectScenario={setSelectedScenarioId}
-            onApplySyncSlot={handleSyncSlot}
-            isSlotSynced={isSlotSynced}
-            isSyncing={isSyncing}
-          />
+          {viewRole === 'demo' ? (
+            <DemoPanel
+              vessel={vessel}
+              cargo={cargo}
+              scenarios={scenarios}
+              recommendedScenario={activeScenario}
+              waitScenario={waitScenario}
+              isSlotSynced={isSlotSynced}
+              isSyncing={isSyncing}
+              isCrisisActive={isRiskState}
+              onApplySyncSlot={handleSyncSlot}
+              vkmskDepthMeters={currentHydroPoint.depthMeters}
+              currentHour={currentHour}
+              groundingProbability={groundingProbability}
+              isPreCleared={isPreCleared}
+              onPreClear={handlePreClear}
+            />
+          ) : (
+            <>
+              {/* Панель «Решение» при риске: Крупный рекомендованный вариант + свернутые альтернативы */}
+              <DecisionMatrix
+                scenarios={scenarios}
+                selectedScenarioId={selectedScenarioId}
+                onSelectScenario={setSelectedScenarioId}
+                onApplySyncSlot={handleSyncSlot}
+                isSlotSynced={isSlotSynced}
+                isSyncing={isSyncing}
+              />
 
-          {/* Карточка судна и гидро-радар (без дублирующей кнопки Sync-Slot) */}
-          <SyncSlotPanel
-            vessel={vessel}
-            vkmskDepthMeters={currentHydroPoint.depthMeters}
-            isSlotSynced={isSlotSynced}
-            isCrisisActive={isRiskState && !isSlotSynced}
-            waitScenario={waitScenario}
-            selectedScenario={activeScenario}
-          />
+              {/* Карточка судна и гидро-радар (без дублирующей кнопки Sync-Slot) */}
+              <SyncSlotPanel
+                vessel={vessel}
+                vkmskDepthMeters={currentHydroPoint.depthMeters}
+                isSlotSynced={isSlotSynced}
+                isCrisisActive={isRiskState && !isSlotSynced}
+                waitScenario={waitScenario}
+                selectedScenario={activeScenario}
+              />
 
-          {/* Цифровой двойник партии груза (Pre-clearance + ESG) */}
-          <CargoCard
-            cargo={cargo}
-            isPreCleared={isPreCleared}
-            onPreClear={handlePreClear}
-            isSlotSynced={isSlotSynced}
-          />
+              {/* Цифровой двойник партии груза (Pre-clearance + ESG) */}
+              <CargoCard
+                cargo={cargo}
+                isPreCleared={isPreCleared}
+                onPreClear={handlePreClear}
+                isSlotSynced={isSlotSynced}
+              />
+            </>
+          )}
         </section>
       </main>
     </div>

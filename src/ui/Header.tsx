@@ -2,6 +2,7 @@ import React from 'react';
 import { Anchor, RefreshCw } from 'lucide-react';
 
 export type ScenarioPresetMode = 'nominal' | 'sgon' | 'june2026';
+export type ViewRole = 'demo' | 'dispatcher';
 
 interface HeaderProps {
   vkmskDepthMeters: number;
@@ -11,6 +12,8 @@ interface HeaderProps {
   onSelectPresetMode: (mode: ScenarioPresetMode) => void;
   isSlotSynced: boolean;
   onReset: () => void;
+  viewRole: ViewRole;
+  onSelectViewRole: (role: ViewRole) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -21,6 +24,8 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectPresetMode,
   isSlotSynced,
   onReset,
+  viewRole,
+  onSelectViewRole,
 }) => {
   return (
     <header className="h-16 px-6 border-b border-hairline bg-surface/80 backdrop-blur-md flex items-center justify-between select-none z-30 shrink-0">
@@ -72,7 +77,36 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Apple-style Segmented Control: Штатно | Сгон | Июнь 2026 */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
+        {/* Режим отображения: Демо (по умолчанию) | Диспетчер (клавиша D) */}
+        <div className="p-1 rounded-inner bg-surface border border-hairline flex items-center gap-1 text-xs">
+          <button
+            onClick={() => onSelectViewRole('demo')}
+            className={`px-2.5 py-1.5 rounded-inner font-medium transition-all cursor-pointer ${
+              viewRole === 'demo'
+                ? 'bg-accent text-text font-semibold shadow-sm'
+                : 'text-text-2 hover:text-text'
+            }`}
+            title="Режим демонстрации (по умолчанию, нажмите D)"
+          >
+            Демо
+          </button>
+          <button
+            onClick={() => onSelectViewRole('dispatcher')}
+            className={`px-2.5 py-1.5 rounded-inner font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+              viewRole === 'dispatcher'
+                ? 'bg-surface-2 text-text border border-hairline shadow-sm'
+                : 'text-text-2 hover:text-text'
+            }`}
+            title="Полный интерфейс диспетчера (нажмите D)"
+          >
+            <span>Диспетчер</span>
+            <kbd className="px-1 py-0.5 rounded bg-surface border border-hairline text-[9px] text-text-2 font-mono">
+              D
+            </kbd>
+          </button>
+        </div>
+
         <div className="p-1 rounded-inner bg-surface border border-hairline flex items-center gap-1 text-xs">
           <button
             onClick={() => onSelectPresetMode('nominal')}
