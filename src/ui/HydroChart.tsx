@@ -51,6 +51,9 @@ export const HydroChart: React.FC<HydroChartProps> = ({
     isSafePass,
   } = profile;
 
+  const arrivalProbPercent = profile.arrivalGroundingProbabilityPercent;
+  const arrivalProbFormatted = arrivalProbPercent >= 99 ? '>99%' : `${arrivalProbPercent}%`;
+
   // Автоплей демо
   useEffect(() => {
     if (!isPlaying) return;
@@ -176,7 +179,7 @@ export const HydroChart: React.FC<HydroChartProps> = ({
           ) : isEtaInRiskWindow ? (
             <span className="px-2 py-0.5 rounded-full text-[11px] border border-critical bg-critical-muted text-critical flex items-center gap-1 font-semibold">
               <AlertTriangle className="w-3 h-3" strokeWidth={1.5} />
-              ETA (T+{vesselEtaBarHour}ч) в риске · P(мель) {profile.arrivalGroundingProbabilityPercent}%
+              ETA (T+{vesselEtaBarHour}ч) в риске · P(мель) {arrivalProbFormatted}
             </span>
           ) : (
             <span className="px-2 py-0.5 rounded-full text-[11px] border border-warn bg-warn-muted text-warn flex items-center gap-1 font-medium">
@@ -408,27 +411,35 @@ export const HydroChart: React.FC<HydroChartProps> = ({
             strokeWidth="2"
             strokeDasharray="4, 3"
           />
-          {/* Флажок ETA */}
-          <rect
-            x={etaX - 60}
-            y={2}
-            width={120}
-            height={16}
-            rx={4}
-            fill="var(--surface)"
-            stroke={isSafePass ? 'var(--ok)' : isEtaInRiskWindow ? 'var(--critical)' : 'var(--warn)'}
-            strokeWidth="1.2"
-          />
-          <text
-            x={etaX}
-            y={13}
-            fill={isSafePass ? 'var(--ok)' : isEtaInRiskWindow ? 'var(--critical)' : 'var(--warn)'}
-            fontSize="11"
-            textAnchor="middle"
-            fontWeight="bold"
-          >
-            ETA: T+{vesselEtaBarHour}ч {isSafePass ? '(ПРОХОД)' : isEtaInRiskWindow ? `(РИСК ${profile.arrivalGroundingProbabilityPercent}%)` : '(ОЖИДАНИЕ)'}
-          </text>
+          {/* Флажок ETA: ширина 152px, не обрезается */}
+          {(() => {
+            const flagWidth = 152;
+            const flagX = Math.max(xMin, Math.min(xMax - flagWidth, etaX - flagWidth / 2));
+            return (
+              <>
+                <rect
+                  x={flagX}
+                  y={2}
+                  width={flagWidth}
+                  height={16}
+                  rx={4}
+                  fill="var(--surface)"
+                  stroke={isSafePass ? 'var(--ok)' : isEtaInRiskWindow ? 'var(--critical)' : 'var(--warn)'}
+                  strokeWidth="1.2"
+                />
+                <text
+                  x={flagX + flagWidth / 2}
+                  y={13}
+                  fill={isSafePass ? 'var(--ok)' : isEtaInRiskWindow ? 'var(--critical)' : 'var(--warn)'}
+                  fontSize="10.5"
+                  textAnchor="middle"
+                  fontWeight="bold"
+                >
+                  ETA: T+{vesselEtaBarHour}ч {isSafePass ? '(ПРОХОД)' : isEtaInRiskWindow ? `(РИСК ${arrivalProbFormatted})` : '(ОЖИДАНИЕ)'}
+                </text>
+              </>
+            );
+          })()}
           <circle
             cx={etaX}
             cy={etaY}

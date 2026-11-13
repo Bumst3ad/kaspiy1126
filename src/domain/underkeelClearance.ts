@@ -91,7 +91,7 @@ export function calculateUnderkeelClearance(
 
   if (actualClearance < 0) {
     status = 'critical';
-    statusLabel = 'Риск мели';
+    statusLabel = 'Посадка на мель';
     isAgroundRisk = true;
   } else if (actualClearance < safetyMarginMeters) {
     status = 'warning';

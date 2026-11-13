@@ -86,20 +86,8 @@ export function calculateSlotTimeline(
       },
     ];
 
-    // 3. РЖД: Подача состава и отправление ускоренного поезда
+    // 3. РЖД: Отправление ускоренного контейнерного поезда по нитке A-17
     const railTrack: SlotTrackEvent[] = [
-      {
-        id: 'rail-loco',
-        party: 'rail',
-        partyLabel: 'РЖД',
-        actionLabel: 'Подача',
-        startHour: 20.0,
-        endHour: 22.0,
-        hours: 2.0,
-        status: 'ok',
-        detail: `Локомотив ${SYNC_SLOT_CONFIG.locomotiveId} подан под погрузку`,
-        resourceId: SYNC_SLOT_CONFIG.locomotiveId,
-      },
       {
         id: 'rail-departure',
         party: 'rail',
@@ -108,8 +96,8 @@ export function calculateSlotTimeline(
         startHour: 22.0,
         endHour: 25.0,
         hours: 3.0,
-        status: 'active',
-        detail: `Сквозная нитка ${SYNC_SLOT_CONFIG.slotNumber} до ${SYNC_SLOT_CONFIG.destinationStation}`,
+        status: 'ok',
+        detail: `Сквозная нитка ${SYNC_SLOT_CONFIG.slotNumber} до ${SYNC_SLOT_CONFIG.destinationStation} (локомотив ${SYNC_SLOT_CONFIG.locomotiveId} подан)`,
         resourceId: SYNC_SLOT_CONFIG.slotNumber,
       },
     ];
@@ -139,12 +127,12 @@ export function calculateSlotTimeline(
         id: 'vessel-stuck',
         party: 'vessel',
         partyLabel: 'Судно',
-        actionLabel: `Простой (${vesselActualWait}ч)`,
+        actionLabel: 'Простой',
         startHour: vesselWaitStart,
         endHour: vesselWaitEnd,
-        hours: vesselActualWait,
+        hours: waitHours,
         status: 'conflict',
-        detail: `Осадка превышает глубину бара. Вынужденный отстой на рейде ${vesselActualWait} ч`,
+        detail: `Осадка превышает глубину бара. Вынужденный отстой на рейде ${waitHours} ч`,
         resourceId: 'MV Demo-01',
       },
     ];

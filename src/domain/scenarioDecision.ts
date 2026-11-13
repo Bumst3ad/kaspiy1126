@@ -112,8 +112,9 @@ export function evaluateDecisionScenarios(
   const isWaitFeasible = waitHours <= SLOT_CANCELLATION_THRESHOLD;
 
   // Динамическая рекомендация:
-  // Если ожидание короткое (<= 8 часов), ждать выгоднее, чем идти в Махачкалу!
-  const isWaitRecommended = waitHours <= 8.0;
+  // Если ожидание в пределах допустимого порога слота (<= 6.0 ч), ждать выгоднее, чем идти в Махачкалу.
+  // Если ожидание превышает порог (> 6.0 ч), нитка РЖД аннулируется, поэтому рекомендуется Махачкала.
+  const isWaitRecommended = isWaitFeasible;
   const isMakhachkalaRecommended = !isWaitRecommended;
 
   // 1. Сценарий: Ждать на внешнем рейде

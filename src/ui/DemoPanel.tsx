@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   CheckCircle2,
   Clock,
@@ -52,12 +52,25 @@ export const DemoPanel: React.FC<DemoPanelProps> = ({
   const [expandedScenarioId, setExpandedScenarioId] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showFormulas, setShowFormulas] = useState(false);
+  const manifestRef = useRef<HTMLDivElement>(null);
 
   const toggleScenario = (id: string) => {
     setExpandedScenarioId((prev) => (prev === id ? null : id));
   };
 
-  const isGroundingRisk = isCrisisActive && !isSlotSynced && hydroForecast.arrivalGroundingProbabilityPercent > 0;
+  // Плавный скролл к манифесту при подтверждении синхронизации
+  useEffect(() => {
+    if (isSlotSynced && manifestRef.current) {
+      const timer = setTimeout(() => {
+        manifestRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [isSlotSynced]);
+
+  const groundingProb = hydroForecast.arrivalGroundingProbabilityPercent;
+  const probFormatted = groundingProb >= 99 ? '>99%' : `${groundingProb}%`;
+  const isGroundingRisk = isCrisisActive && !isSlotSynced && groundingProb > 0;
   const recommendedScenario = scenarios.find((s) => s.isRecommended) || scenarios[0];
   const secondaryScenarios = scenarios.filter((s) => s !== recommendedScenario);
 
@@ -72,7 +85,7 @@ export const DemoPanel: React.FC<DemoPanelProps> = ({
           </h1>
         ) : isGroundingRisk ? (
           <h1 className="text-[28px] font-bold text-critical leading-tight">
-            {vessel.name} сядет на мель на баре 151 км через {hydroForecast.vesselEtaBarHour} ч — вероятность {hydroForecast.arrivalGroundingProbabilityPercent}%
+            {vessel.name} сядет на мель на баре 151 км через {hydroForecast.vesselEtaBarHour} ч — вероятность {probFormatted}
           </h1>
         ) : (
           <h1 className="text-[28px] font-bold text-ok leading-tight flex items-center gap-2.5">
@@ -163,6 +176,13 @@ export const DemoPanel: React.FC<DemoPanelProps> = ({
               <div className="p-3 rounded-inner bg-ok-muted border border-ok text-ok text-sm font-medium flex items-center gap-2">
                 <Anchor className="w-4 h-4" strokeWidth={1.5} />
                 <span>Ожидание на внешнем рейде обеспечено</span>
+              </div>
+            )}
+
+            {recommendedScenario.id === 'pass' && (
+              <div className="p-3 rounded-inner bg-ok-muted border border-ok text-ok text-sm font-medium flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4" strokeWidth={1.5} />
+                <span>Штатная проводка судна по каналу ВКМСК</span>
               </div>
             )}
           </div>
@@ -318,12 +338,14 @@ export const DemoPanel: React.FC<DemoPanelProps> = ({
           />
 
           {/* Манифест с ESG и pre-clearance */}
-          <CargoCard
-            cargo={cargo}
-            isPreCleared={isPreCleared}
-            onPreClear={onPreClear}
-            isSlotSynced={isSlotSynced}
-          />
+          <div ref={manifestRef} className="scroll-mt-4">
+            <CargoCard
+              cargo={cargo}
+              isPreCleared={isPreCleared}
+              onPreClear={onPreClear}
+              isSlotSynced={isSlotSynced}
+            />
+          </div>
         </div>
       )}
     </div>

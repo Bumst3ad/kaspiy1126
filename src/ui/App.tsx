@@ -14,7 +14,7 @@ import { evaluateDecisionScenarios } from '../domain/scenarioDecision';
 import { CASPIAN_ASSUMPTIONS } from '../data/assumptions';
 
 export const App: React.FC = () => {
-  const [presetMode, setPresetMode] = useState<ScenarioPresetMode>('sgon');
+  const [presetMode, setPresetMode] = useState<ScenarioPresetMode>('june2026'); // По умолчанию «Июнь 2026»
   const [uiMode, setUiMode] = useState<UiMode>('demo'); // Демо-режим по умолчанию
   const [isSlotSynced, setIsSlotSynced] = useState(false);
   const [isPreCleared, setIsPreCleared] = useState(false);
@@ -33,10 +33,10 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Интерактивные параметры реконструкции
-  const [vesselDraft, setVesselDraft] = useState(4.15); // 4.15 м (Volgo-Max) или 3.40 м (типичная)
-  const [siltationMeters, setSiltationMeters] = useState(0.35); // Наносы после паводка по Минтрансу РФ
-  const [vesselEtaBarHour, setVesselEtaBarHour] = useState(20); // Час подхода к бару: T+10ч, T+20ч, T+58ч
+  // Интерактивные параметры реконструкции («Июнь 2026» по умолчанию)
+  const [vesselDraft, setVesselDraft] = useState(3.40); // 3.40 м (типичная река-море при закрытии канала)
+  const [siltationMeters, setSiltationMeters] = useState(0.55); // Экстремальные наносы 0.55 м по Минтрансу РФ
+  const [vesselEtaBarHour, setVesselEtaBarHour] = useState(20); // Час подхода к бару: T+20ч (пик сгона)
 
   const [selectedScenarioId, setSelectedScenarioId] = useState<'wait' | 'makhachkala' | 'lighten'>('makhachkala');
   const [isSyncing, setIsSyncing] = useState(false);

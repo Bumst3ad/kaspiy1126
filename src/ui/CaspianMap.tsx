@@ -210,11 +210,11 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
     });
     canalGroup.addLayer(lowerCanal);
 
-    // Километровые пикеты ВКМСК и внешний рейд (без дублирования Астрахани и Оля)
+    // Километровые пикеты ВКМСК и внешний рейд (без наложений на линию и маркеры)
     const milestones = [
-      { pos: [45.2700, 47.7250] as L.LatLngExpression, label: '151–155 км · Бар', anchor: [55, 10] },
-      { pos: [44.8900, 47.7500] as L.LatLngExpression, label: '188 км · Вход в канал', anchor: [110, 10] },
-      { pos: [44.6800, 48.0200] as L.LatLngExpression, label: '188+ км · Внешний рейд (9.5 м)', anchor: [5, 10] },
+      { pos: [45.2700, 47.7250] as L.LatLngExpression, label: '151–155 км · Бар', anchor: [-18, 10], width: 120 },
+      { pos: [44.8500, 47.8500] as L.LatLngExpression, label: '188 км · Вход в канал', anchor: [136, 10], width: 120 },
+      { pos: [44.6800, 48.0200] as L.LatLngExpression, label: '188+ км · Внешний рейд (9.5 м)', anchor: [-16, 10], width: 160 },
     ];
 
     milestones.forEach((m) => {
@@ -225,7 +225,7 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
           </div>
         `,
         className: 'canal-milestone',
-        iconSize: [110, 20],
+        iconSize: [m.width, 20],
         iconAnchor: m.anchor as L.PointExpression,
       });
       canalGroup.addLayer(L.marker(m.pos, { icon: milestoneIcon }));
@@ -273,10 +273,15 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
     }
 
     // 3. Порты: подписи только у релевантных портов, остальные — нейтральная точка с подписью по hover
+    // В режиме «Канал» скрываем удаленные порты вне коридора (Актау, Баку, Туркменбаши), убирая неподписанные точки
     ports.forEach((port) => {
       const isAstrakhan = port.id === 'RU_AST';
       const isMakhachkala = port.id === 'RU_MCX';
       const isRelevant = RELEVANT_PORT_IDS.has(port.id);
+
+      if (viewScope === 'canal' && !isRelevant) {
+        return;
+      }
 
       let dotColor = 'var(--ok)';
       let badge = '';
@@ -395,6 +400,10 @@ export const CaspianMap: React.FC<CaspianMapProps> = ({
     });
 
     const vesselMarker = L.marker(vesselPos, { icon: vesselIcon });
+    vesselMarker.bindTooltip(
+      `<div class="text-[11px] font-semibold text-text whitespace-nowrap">${vessel.name} · ${vessel.draftMeters.toFixed(2)}м</div>`,
+      { permanent: true, direction: 'top', className: 'glass-panel', offset: [0, -16] }
+    );
     vesselMarker.bindPopup(`
       <div class="p-3 text-xs w-64 font-sans">
         <div class="border-b border-divider pb-2 mb-2">

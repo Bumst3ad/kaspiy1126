@@ -264,10 +264,12 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
                           left: `${(ev.endHour / 60) * 100}%`,
                           width: `${(ev.bufferAfterHours / 60) * 100}%`,
                         }}
-                        className="absolute top-0 bottom-0 border-y border-r border-dashed border-ok/80 bg-ok/20 rounded-r flex items-center justify-center text-[8px] font-mono text-ok font-semibold"
+                        className="absolute top-0 bottom-0 border-y border-r border-dashed border-ok/80 bg-ok/20 rounded-r overflow-hidden"
                         title={`Технологический буфер: +${ev.bufferAfterHours}ч`}
                       >
-                        +{ev.bufferAfterHours}ч
+                        <svg className="w-full h-full opacity-40 stroke-ok" preserveAspectRatio="none">
+                          <line x1="0" y1="100%" x2="100%" y2="0" strokeWidth="1.5" strokeDasharray="3 3" />
+                        </svg>
                       </div>
                     )}
                   </React.Fragment>
@@ -304,10 +306,12 @@ export const SyncSlotPanel: React.FC<SyncSlotPanelProps> = ({
                           left: `${(ev.endHour / 60) * 100}%`,
                           width: `${(ev.bufferAfterHours / 60) * 100}%`,
                         }}
-                        className="absolute top-0 bottom-0 border-y border-r border-dashed border-ok/80 bg-ok/20 rounded-r flex items-center justify-center text-[8px] font-mono text-ok font-semibold"
+                        className="absolute top-0 bottom-0 border-y border-r border-dashed border-ok/80 bg-ok/20 rounded-r overflow-hidden"
                         title={`Технологический буфер: +${ev.bufferAfterHours}ч`}
                       >
-                        +{ev.bufferAfterHours}ч
+                        <svg className="w-full h-full opacity-40 stroke-ok" preserveAspectRatio="none">
+                          <line x1="0" y1="100%" x2="100%" y2="0" strokeWidth="1.5" strokeDasharray="3 3" />
+                        </svg>
                       </div>
                     )}
                   </React.Fragment>

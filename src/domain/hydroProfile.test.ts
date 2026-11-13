@@ -3,7 +3,6 @@ import {
   generateHydroTimeline,
   getInterpolatedHydroPoint,
   calculateGroundingProbability,
-  standardNormalCdf,
 } from './hydroProfile';
 
 describe('Hydro Profile & Predictive Timeline', () => {
